@@ -110,12 +110,12 @@ class NetworkConnector:
         Returns:
             bool: 是否成功
         """
+        node = self.nodes[node_idx]
+        
         try:
             # 建立所有连接
             for peer_idx, latency in peers_with_latencies:
                 self._establish_connection(node_idx, peer_idx, latency)
-
-            node = self.nodes[node_idx]
 
             valid_peers = node.rpc.test_getPeerInfo()
 
@@ -173,6 +173,7 @@ def _check_handshake(node: RemoteNode, peer_key: str) -> bool:
     """等待握手完成"""
 
     peers = node.rpc.test_getPeerInfo()
+    logger.debug(f"{node.id} get peers {peer_key}, len {len(peers)}")
 
     for peer in peers:
         has_valid_protocol = len(peer.get('protocols', [])) > 0

@@ -166,7 +166,7 @@ class ResultCollector:
 class BlockGenerationScheduler:
     """区块生成调度器"""
     
-    def __init__(self, nodes: List[RemoteNode], *, max_failures=0, max_block_size_in_bytes=300*1024):
+    def __init__(self, nodes: List[RemoteNode], max_block_size_in_bytes, *, max_failures=0):
         self.nodes = {node.id: node for node in nodes}
         self.collector = ResultCollector(max_failures=max_failures)
         self.max_block_size_in_bytes = max_block_size_in_bytes
@@ -285,7 +285,7 @@ class SimpleGenerateThread(threading.Thread):
                 raise Exception(f"Unexpected return valu {hash}")
 
             rpc_time = round(time.time() - start, 3)
-            logger.debug(f"node {self.node.id} generate block {hash}")
+            logger.debug(f"node {self.node.id} generate block {hash}, rpc time {rpc_time}")
             success = True
             error_msg = None
         except Exception as e:
@@ -340,7 +340,7 @@ class StatisticsReporter(threading.Thread):
         self.should_stop.set()
 
 # 主函数
-def generate_blocks_async(nodes: List[RemoteNode], num_blocks: int, generation_period_ms:int, min_node_interval_ms: int=100):
+def generate_blocks_async(nodes: List[RemoteNode], num_blocks: int, max_block_size_in_bytes: int, generation_period_ms:int, min_node_interval_ms: int=100):
     """重构后的异步区块生成函数"""
     
     # 1. 生成出块计划
@@ -363,5 +363,5 @@ def generate_blocks_async(nodes: List[RemoteNode], num_blocks: int, generation_p
     )
     
     # 3. 执行计划
-    scheduler = BlockGenerationScheduler(nodes=nodes)
+    scheduler = BlockGenerationScheduler(nodes=nodes, max_block_size_in_bytes=max_block_size_in_bytes)
     scheduler.execute(tasks)

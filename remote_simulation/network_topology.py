@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Set, Tuple
 
+from loguru import logger
+
 from remote_simulation.remote_node import RemoteNode
 
 
@@ -76,6 +78,8 @@ class TopologyGenerator:
             NetworkTopology: 生成的网络拓扑
         """
         topology = NetworkTopology()
+
+        logger.info(f"Generate topology, nodes {self.num_nodes}, peers {self.sample}, latency {self.latency_min} ~ {self.latency_max} ms")
         
         # 第一步：建立环形基础拓扑
         self._create_ring_topology(topology)
@@ -102,13 +106,13 @@ class TopologyGenerator:
 
     def _add_random_connections_for_node(self, topology: NetworkTopology, node_idx: int) -> None:
         """为每个节点添加随机对等连接"""
-
         # 已经有1个环形连接，再添加 (sample - 1) 个
         current_peers = topology.get_peers(node_idx)
         
-        while len(current_peers) < self.sample:
+        for _ in range(self.sample - len(current_peers)):
             peer = self._select_random_peer(node_idx, current_peers)
             if peer is None:
+                logger.debug(f"Early return with not enough peers {len(current_peers)} < {self.sample}")
                 return
             latency = random.randint(self.latency_min, self.latency_max)
             topology.add_connection(node_idx, peer, latency)

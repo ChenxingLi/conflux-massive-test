@@ -3,6 +3,9 @@
 
 import argparse
 import os
+
+from dotenv import load_dotenv
+
 import traceback
 from typing import List, Optional, Literal
 from dataclasses import dataclass
@@ -17,7 +20,7 @@ from utils.counter import AtomicCounter
 
 import pickle
 
-SSH_CONNECT_CHECK_POOL = ThreadPoolExecutor(max_workers=30)
+SSH_CONNECT_CHECK_POOL = ThreadPoolExecutor(max_workers=400)
 
 @dataclass
 class LaunchConfig:
@@ -71,8 +74,14 @@ class Instances:
                 {
                     'DeviceName': '/dev/sda1',
                     'Ebs': {
-                        'VolumeSize': config.volume_size
-                    }
+                        'VolumeSize': config.volume_size,
+                        'VolumeType': 'gp3',
+                        'Iops': 16000,
+                        # 4. gp3 单卷吞吐量最大值 (MiB/s)
+                        'Throughput': 1000,
+                        # 5. 随实例终止删除，避免残留扣费
+                        'DeleteOnTermination': True
+                    },
                 }
             ],
             TagSpecifications=[
@@ -298,6 +307,10 @@ def arg_parser():
 # ========== 使用示例 ==========
 
 if __name__ == "__main__":
+    load_dotenv()
+
+    keypair = os.getenv("CONFLUX_MASSIVE_TEST_AWS_KEY_PAIR", "chenxing-st")
+
     parser = arg_parser()
     args = parser.parse_args()
     
@@ -305,7 +318,7 @@ if __name__ == "__main__":
         # 配置启动参数
         config = LaunchConfig(
             instance_count=args.instance_count,
-            keypair="chenxing-st",
+            keypair=keypair,
             role="massive-test",
             image_id="ami-088f930e18817a524",  # 可选：指定自定义镜像
             instance_type=args.instance_type,          # 可选：指定实例类型

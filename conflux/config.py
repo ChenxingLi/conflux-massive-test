@@ -30,3 +30,17 @@ small_local_test_conf = dict(
     enable_single_mpt_storage = "true",
     rpc_enable_metrics = "true",
 )
+
+default_conflux_conf = dict(
+    chain_id = DEFAULT_PY_TEST_CHAIN_ID,
+    db_cache_size = 128,
+    ledger_cache_size = 1024,
+    storage_delta_mpts_cache_size = 20_000_000,
+    storage_delta_mpts_cache_start_size = 2_000_000,
+    storage_delta_mpts_slab_idle_size = 2_000_000,
+    tx_pool_size = 500_000,
+    persist_tx_index = "true",
+    persist_block_number_index = "true",
+)
+
+production_conf = default_conflux_conf

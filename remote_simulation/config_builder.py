@@ -34,11 +34,12 @@ class ConfluxOptions:
     log_file: str = "./log/conflux.log"
     metrics_output_file: str = "./log/metrics.log"
     send_tx_period_ms: int = 1300
-    txgen_account_count: int = 10
+    txgen_account_count: int = 100
     txgen_batch_size: int = 10
     tx_pool_size: int = conflux.config.default_conflux_conf["tx_pool_size"]
-    max_block_size_in_bytes: int = conflux.config.default_config["MAX_BLOCK_SIZE_IN_BYTES"]
+    max_block_size_in_bytes: int = 200 * 1024
     execution_prefetch_threads: int = 8
+    target_block_gas_limit: int = 30_000_000
 
     
     # PoS / Transition configurations

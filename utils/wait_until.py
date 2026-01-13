@@ -3,6 +3,8 @@ import time
 
 from loguru import logger
 
+class WaitUntilTimeoutError(Exception):
+    pass
 
 def wait_until(predicate,
                *,
@@ -31,9 +33,11 @@ def wait_until(predicate,
     logger.warning(
         "wait_until() failed. Predicate: {}".format(predicate_source))
     if attempt >= attempts:
-        raise AssertionError("Predicate {} not true after {} attempts".format(
-            predicate_source, attempts))
+        raise WaitUntilTimeoutError(
+            "Predicate {} not true after {} attempts".format(
+                predicate_source, attempts))
     elif time.time() >= time_end:
-        raise AssertionError("Predicate {} not true after {} seconds".format(
-            predicate_source, timeout))
+        raise WaitUntilTimeoutError(
+            "Predicate {} not true after {} seconds".format(
+                predicate_source, timeout))
     raise RuntimeError('Unreachable')

@@ -25,6 +25,7 @@ RUN cargo +1.90 install flamegraph
 # 2. 准备构建参数
 ARG BRANCH=master
 ARG REPO_URL=https://github.com/Conflux-Chain/conflux-rust
+ARG CACHEBUST=1
 
 WORKDIR /usr/src
 

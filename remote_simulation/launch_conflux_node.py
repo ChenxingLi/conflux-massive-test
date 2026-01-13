@@ -2,7 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from . import docker_cmds
 from .remote_node import RemoteNode
-import shell_cmd
+from utils import shell_cmds
 from remote_simulation.port_allocation import remote_rpc_port
 from utils.counter import AtomicCounter
 from utils.tempfile import TempFile
@@ -19,8 +19,8 @@ import requests
 from loguru import logger
 
 
-HOST_CONNECT_POOL = ThreadPoolExecutor(max_workers=100)
-NODE_CONNECT_POOL = ThreadPoolExecutor(max_workers=100)
+HOST_CONNECT_POOL = ThreadPoolExecutor(max_workers=400)
+NODE_CONNECT_POOL = ThreadPoolExecutor(max_workers=400)
 
 @dataclass
 class InstanceExecutionContext:
@@ -52,7 +52,7 @@ def launch_remote_nodes(ips: List[str], nodes_per_host: int, config_file: TempFi
 def stop_remote_nodes(ips: List[str]):
     def _stop_instance(ip_address: str, user: str):
         try:
-            shell_cmd.ssh(ip_address, user, docker_cmds.stop_all_nodes())
+            shell_cmds.ssh(ip_address, user, docker_cmds.stop_all_nodes())
             logger.debug(f"实例 {ip_address} 已停止所有节点")
             return 0
         except Exception as e:
@@ -65,7 +65,7 @@ def stop_remote_nodes(ips: List[str]):
 def destory_remote_nodes(ips: List[str]):
     def _stop_instance(ip_address: str, user: str):
         try:
-            shell_cmd.ssh(ip_address, user, docker_cmds.destory_all_nodes())
+            shell_cmds.ssh(ip_address, user, docker_cmds.destory_all_nodes())
             logger.debug(f"实例 {ip_address} 已销毁所有节点")
             return 0
         except Exception as e:
@@ -80,15 +80,15 @@ def destory_remote_nodes(ips: List[str]):
 def _execute_instance(ip_address: str, user: str, ctx: InstanceExecutionContext) -> List[RemoteNode]:
     # 返回失败节点数量
     try:
-        shell_cmd.scp(ctx.config_file.path, ip_address, user, "~/config.toml")
+        shell_cmds.scp(ctx.config_file.path, ip_address, user, "~/config.toml")
         logger.debug(f"实例 {ip_address} 同步配置完成")
         if ctx.pull_docker_image:
-            shell_cmd.ssh(ip_address, user, docker_cmds.pull_image())
+            shell_cmds.ssh(ip_address, user, docker_cmds.pull_image())
             logger.debug(f"实例 {ip_address} 拉取 docker 镜像完成")
 
         # 清理之前实验的残留数据        
-        shell_cmd.ssh(ip_address, user, docker_cmds.destory_all_nodes())
-        logger.debug(f"实例 {ip_address} 状态初始化完成")
+        shell_cmds.ssh(ip_address, user, docker_cmds.destory_all_nodes())
+        logger.debug(f"实例 {ip_address} 状态初始化完成，开始启动节点")
     except Exception as e:
         logger.warning(f"无法初始化实例 {ip_address}: {e}")
         return list()
@@ -100,7 +100,7 @@ def _execute_instance(ip_address: str, user: str, ctx: InstanceExecutionContext)
 
 def _launch_node(ip_address: str, user: str, index: int, counter: AtomicCounter):
     try:
-        shell_cmd.ssh(ip_address, user, docker_cmds.launch_node(index))
+        shell_cmds.ssh(ip_address, user, docker_cmds.launch_node(index))
     except Exception as e:
         logger.info(f"实例 {ip_address} 节点 {index} 启动失败：{e}")
         return None

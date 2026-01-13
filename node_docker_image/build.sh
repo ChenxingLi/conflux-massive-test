@@ -1,5 +1,6 @@
 docker build \
-  --build-arg BRANCH=block_event_record \
+  --build-arg CACHEBUST=$(date +%s) \
+  --build-arg BRANCH=block_event_record2 \
   --build-arg REPO_URL=https://github.com/ChenxingLi/conflux-rust \
   --build-arg https_proxy=http://192.168.1.169:1082 \
   --build-arg http_proxy=http://192.168.1.169:1082 \
