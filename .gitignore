@@ -1,3 +1,7 @@
+*.pem
+ali_servers.json
+/ref
+
 instances.pkl
 logs/
 
