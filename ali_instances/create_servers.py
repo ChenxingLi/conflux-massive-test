@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 from typing import Iterable, Dict, Any
 
+from dotenv import load_dotenv
 from loguru import logger
 
 from ali_instances.multi_region_runner import provision_aliyun_hosts
@@ -149,4 +150,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    load_dotenv()
     main()

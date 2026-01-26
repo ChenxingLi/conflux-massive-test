@@ -385,6 +385,7 @@ def create_instance(c: EcsClient, cfg: EcsConfig, disk_size: int = 40, amount: i
         req.spot_strategy = cfg.spot_strategy
     if disk:
         req.system_disk = disk
+    logger.debug(f"Launch instance with disk type {disk}")
     resp = c.run_instances(req)
     ids = resp.body.instance_id_sets.instance_id_set if resp.body and resp.body.instance_id_sets else []
     if not ids:

@@ -67,6 +67,15 @@ def cleanup_all_regions(
 
     total_deleted = 0
     observed_user_pairs: set[tuple[str, Optional[str]]] = set()
+    regions = [
+        "ap-southeast-5",  # Indonesia
+        "ap-southeast-3",  # Malaysia
+        "ap-southeast-6",  # Philippines
+        "ap-southeast-7",  # Thailand
+        "ap-northeast-2",  # Korea
+        "ap-southeast-1",  # Singapore
+        "me-east-1",  
+    ]
 
     for region_id in regions:
         logger.info(f"cleanup region {region_id}")

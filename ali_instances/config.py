@@ -8,7 +8,7 @@ from alibabacloud_tea_openapi.models import Config as AliyunConfig
 from dotenv import load_dotenv
 
 DEFAULT_REGION = "ap-southeast-3"
-DEFAULT_KEYPAIR = "conflux-image-builder-ssh-key"
+DEFAULT_KEYPAIR = "conflux-image-builder-ssh-key-2"
 DEFAULT_SSH_KEY = "./keys/ssh-key.pem"
 DEFAULT_VPC = "conflux-image-builder"
 DEFAULT_VPC_CIDR = "10.0.0.0/16"
@@ -53,7 +53,7 @@ class EcsConfig:
     conflux_git_ref: str = "v3.0.2"
     image_prefix: str = "conflux"
     instance_name_prefix: str = "conflux-builder"
-    internet_max_bandwidth_out: int = 10
+    internet_max_bandwidth_out: int = 100
     search_all_regions: bool = False
     cleanup_builder_instance: bool = True
     poll_interval: int = 5
