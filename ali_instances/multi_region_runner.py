@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import math
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
@@ -446,20 +447,31 @@ def provision_region_batch(
     # call per region/zone and avoids creating instances one-by-one.
     instance_ids = create_instance(region_client, cfg, disk_size=100, amount=plan.hosts_needed)
     region_hosts: List[HostSpec] = []
-    for iid in instance_ids:
-        # Wait for instance to become ready and acquire a public IP.
-        ip = wait_instance_ready(region_client, cfg, iid)
-        region_hosts.append(
-            HostSpec(
-                ip=ip,
-                nodes_per_host=plan.nodes_per_host,
-                ssh_user=cfg.ssh_username,
-                ssh_key_path=str(Path(cfg.ssh_private_key_path).expanduser()),
-                provider="aliyun",
-                region=region_name,
-                instance_id=iid,
-            )
-        )
+    failed_iids: List[str] = []
+    max_workers = min(32, max(1, len(instance_ids)))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_iid = {executor.submit(wait_instance_ready, region_client, cfg, iid): iid for iid in instance_ids}
+        for fut in as_completed(future_to_iid):
+            iid = future_to_iid[fut]
+            try:
+                ip = fut.result()
+                region_hosts.append(
+                    HostSpec(
+                        ip=ip,
+                        nodes_per_host=plan.nodes_per_host,
+                        ssh_user=cfg.ssh_username,
+                        ssh_key_path=str(Path(cfg.ssh_private_key_path).expanduser()),
+                        provider="aliyun",
+                        region=region_name,
+                        instance_id=iid,
+                    )
+                )
+            except Exception as exc:
+                logger.warning(f"等待实例 {iid} 就绪失败: {exc}")
+                failed_iids.append(iid)
+    if failed_iids:
+        logger.warning(f"{len(failed_iids)} 个实例未就绪: {failed_iids}")
+
     return region_name, region_hosts
 
 
