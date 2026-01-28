@@ -3,6 +3,7 @@ import asyncio
 import copy
 import ipaddress
 import json
+import socket
 import subprocess
 import time
 import traceback
@@ -31,6 +32,18 @@ async def wait_ssh(host: str, user: str, key: str, timeout: int, interval: int =
         except Exception:
             await asyncio.sleep(interval)
     raise TimeoutError(f"SSH not ready for {host}")
+
+
+def wait_ssh_port(host: str, port: int, timeout: int, interval: int = 3) -> None:
+    """Wait until the SSH port is reachable without authenticating."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            with socket.create_connection((host, port), timeout=interval):
+                return
+        except Exception:
+            time.sleep(interval)
+    raise TimeoutError(f"SSH port not ready for {host}:{port}")
 
 
 def _tag_dict(cfg: EcsConfig) -> dict[str, str]:
@@ -524,5 +537,3 @@ class InstanceHandle:
     config: EcsConfig
     instance_id: str
     public_ip: str
-
-
