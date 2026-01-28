@@ -28,7 +28,7 @@ class TagFilter:
 
 
 def _list_regions(cfg: EcsRuntimeConfig) -> List[str]:
-    c = client(cfg.credentials, cfg.region_id, cfg.endpoint)
+    c = client(cfg.credentials, cfg.region_id)
     resp = c.describe_regions(ecs_models.DescribeRegionsRequest())
     return [r.region_id for r in resp.body.regions.region if r.region_id]
 
@@ -80,7 +80,7 @@ def cleanup_all_regions(
 
     for region_id in regions:
         logger.info(f"cleanup region {region_id}")
-        c = client(cfg.credentials, region_id, cfg.endpoint)
+        c = client(cfg.credentials, region_id)
 
         try:
             # Delete instances by tags
@@ -193,7 +193,7 @@ def cleanup_from_json(
 
     for region_id, instance_ids in by_region.items():
         logger.info(f"cleanup instances in region {region_id}")
-        c = client(cfg.credentials, region_id, cfg.endpoint)
+        c = client(cfg.credentials, region_id)
         for iid in instance_ids:
             try:
                 delete_instance(c, region_id, iid)

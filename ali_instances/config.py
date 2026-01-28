@@ -71,7 +71,6 @@ class EcsRuntimeConfig:
     credentials: AliCredentials = field(default_factory=lambda: load_credentials())
     region_id: str = DEFAULT_REGION
     zone_id: Optional[str] = None
-    endpoint: Optional[str] = None
     image_id: Optional[str] = None
     instance_type: Optional[str] = None
     use_spot: bool = True
@@ -104,28 +103,12 @@ def load_credentials() -> AliCredentials:
     return AliCredentials(ak, sk)
 
 
-def load_endpoint() -> Optional[str]:
-    return os.getenv("ALI_ECS_ENDPOINT", "").strip() or None
-
-
-def client(creds: AliCredentials, region: str, endpoint: Optional[str] = None) -> EcsClient:
-    if endpoint and "cloudcontrol" in endpoint:
-        endpoint = f"ecs.{region}.aliyuncs.com"
-    if endpoint:
-        config = AliyunOpenApiConfig(
-            access_key_id=creds.access_key_id,
-            access_key_secret=creds.access_key_secret,
-            region_id=region,
-            endpoint=endpoint,
-            read_timeout=120_000,
-            connect_timeout=120_000,
-        )
-    else:
-        config = AliyunOpenApiConfig(
-            access_key_id=creds.access_key_id,
-            access_key_secret=creds.access_key_secret,
-            region_id=region,
-            read_timeout=120_000,
-            connect_timeout=120_000,
-        )
+def client(creds: AliCredentials, region: str) -> EcsClient:
+    config = AliyunOpenApiConfig(
+        access_key_id=creds.access_key_id,
+        access_key_secret=creds.access_key_secret,
+        region_id=region,
+        read_timeout=120_000,
+        connect_timeout=120_000,
+    )
     return EcsClient(config)

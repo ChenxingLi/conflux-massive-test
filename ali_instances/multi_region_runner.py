@@ -369,7 +369,7 @@ def build_plans_parallel(
         async def _plan_for(region_cfg: RegionConfig):
             region_name = region_cfg.name
             try:
-                region_client = client(creds, region_name, None)
+                region_client = client(creds, region_name)
                 plan = await asyncio.to_thread(
                     build_region_plan, region_client, region_cfg, account_cfg, hardware_defaults
                 )
@@ -608,7 +608,7 @@ def provision_aliyun_hosts(
                 tasks = [
                     asyncio.to_thread(
                         ensure_region_network,
-                        region_client=client(creds, region_cfg.name, None),
+                        region_client=client(creds, region_cfg.name),
                         region_cfg=region_cfg,
                         account_cfg=account_cfg,
                         creds=creds,
@@ -649,7 +649,7 @@ def provision_aliyun_hosts(
                     image_id = image_ids_by_region.get(region_name)
                     if not image_id:
                         raise RuntimeError(f"image not prepared for {region_name}")
-                    region_client = client(creds, region_name, None)
+                    region_client = client(creds, region_name)
                     tasks.append(
                         asyncio.to_thread(
                             provision_region_batch,

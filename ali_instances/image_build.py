@@ -57,7 +57,7 @@ def find_img_in_regions(
     name: str,
 ) -> Optional[Tuple[str, str]]:
     for region in regions:
-        c = client(creds, region, None)
+        c = client(creds, region)
         img = find_img(c, region, name)
         if img:
             return region, img
@@ -73,7 +73,7 @@ async def ensure_image_in_region(
     poll_interval: int,
     wait_timeout: int,
 ) -> str:
-    c = client(creds, region, None)
+    c = client(creds, region)
     existing = find_img_info(c, region, image_name)
     if existing:
         image_id, status = existing
@@ -117,7 +117,7 @@ def build_base_image_in_region(
     cfg = EcsRuntimeConfig(credentials=creds, region_id=region)
     cfg.poll_interval = poll_interval
     cfg.wait_timeout = wait_timeout
-    base_image_id = find_ubuntu(client(creds, region, None), region)
+    base_image_id = find_ubuntu(client(creds, region), region)
     logger.info(f"building base image {image_name} in {region}")
     return create_server_image(cfg, base_image_id=base_image_id, prepare_fn=prepare_docker_server_image)
 
@@ -132,7 +132,7 @@ def _copy_image(
     poll_interval: int,
     wait_timeout: int,
 ) -> str:
-    src_client = client(creds, src_region, None)
+    src_client = client(creds, src_region)
     try:
         resp = src_client.copy_image(
             ecs_models.CopyImageRequest(
@@ -147,7 +147,7 @@ def _copy_image(
             # Image with the same name already exists in the destination region
             # but is not available because it is still being copied.
             # query the image ID by name.
-            dest_client = client(creds, dest_region, None)
+            dest_client = client(creds, dest_region)
             existing = find_img_info(dest_client, dest_region, image_name)
             if existing:
                 logger.info(f"found existing image {existing[0]} of name {image_name} in {dest_region} of state {existing[1]}. Probably being copied. Will wait for it to be available.")
@@ -333,7 +333,7 @@ def create_server_image(
     prepare_fn: Callable[[str, EcsRuntimeConfig], Coroutine[Any, Any, None]] = prepare_docker_server_image,
 ) -> str:
     name = _img_name()
-    c = client(cfg.credentials, cfg.region_id, cfg.endpoint)
+    c = client(cfg.credentials, cfg.region_id)
     existing = find_img(c, cfg.region_id, name)
     if existing:
         logger.info(f"image exists: {existing}")
