@@ -10,7 +10,7 @@ from typing import Dict, Iterable, List, Optional
 from alibabacloud_ecs20140526 import models as ecs_models
 from loguru import logger
 
-from .config import EcsConfig, DEFAULT_COMMON_TAG_KEY, DEFAULT_COMMON_TAG_VALUE, DEFAULT_USER_TAG_KEY, DEFAULT_USER_TAG_VALUE
+from .config import EcsRuntimeConfig, DEFAULT_COMMON_TAG_KEY, DEFAULT_COMMON_TAG_VALUE, DEFAULT_USER_TAG_KEY, DEFAULT_USER_TAG_VALUE
 from .instance_prep import delete_instance
 from .config import client
 
@@ -27,7 +27,7 @@ class TagFilter:
         return tag_map.get(self.common_key) == self.common_value and tag_map.get(self.user_key) == self.user_value
 
 
-def _list_regions(cfg: EcsConfig) -> List[str]:
+def _list_regions(cfg: EcsRuntimeConfig) -> List[str]:
     c = client(cfg.credentials, cfg.region_id, cfg.endpoint)
     resp = c.describe_regions(ecs_models.DescribeRegionsRequest())
     return [r.region_id for r in resp.body.regions.region if r.region_id]
@@ -58,7 +58,7 @@ def cleanup_all_regions(
     name_prefix: Optional[str] = None,
     delete_network: bool = False,
 ) -> None:
-    cfg = EcsConfig(credentials=credentials or EcsConfig().credentials)
+    cfg = EcsRuntimeConfig(credentials=credentials or EcsRuntimeConfig().credentials)
     if regions is None:
         regions = _list_regions(cfg)
 
@@ -68,6 +68,7 @@ def cleanup_all_regions(
     total_deleted = 0
     observed_user_pairs: set[tuple[str, Optional[str]]] = set()
     regions = [
+        "cn-wulanchabu",
         "ap-southeast-5",  # Indonesia
         "ap-southeast-3",  # Malaysia
         "ap-southeast-6",  # Philippines
@@ -180,7 +181,7 @@ def cleanup_from_json(
 
     hosts = load_host_specs(data)
 
-    cfg = EcsConfig(credentials=credentials or EcsConfig().credentials)
+    cfg = EcsRuntimeConfig(credentials=credentials or EcsRuntimeConfig().credentials)
     by_region: Dict[str, List[str]] = {}
     for h in hosts:
         region = h.region

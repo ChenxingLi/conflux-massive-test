@@ -16,7 +16,11 @@ from alibabacloud_ecs20140526.client import Client as EcsClient
 from loguru import logger
 
 from utils.wait_until import wait_until
-from .config import EcsConfig, client, RUN_INSTANCES_MAX_AMOUNT
+from .config import EcsRuntimeConfig, client, RUN_INSTANCES_MAX_AMOUNT
+
+DEFAULT_MIN_CPU_CORES = 4
+DEFAULT_MIN_MEMORY_GB = 8.0
+DEFAULT_MAX_MEMORY_GB = 8.0
 
 
 async def wait_ssh(host: str, user: str, key: str, timeout: int, interval: int = 3) -> None:
@@ -33,7 +37,7 @@ async def wait_ssh(host: str, user: str, key: str, timeout: int, interval: int =
     raise TimeoutError(f"SSH not ready for {host}")
 
 
-def _tag_dict(cfg: EcsConfig) -> dict[str, str]:
+def _tag_dict(cfg: EcsRuntimeConfig) -> dict[str, str]:
     return {
         cfg.common_tag_key: cfg.common_tag_value,
         cfg.user_tag_key: cfg.user_tag_value,
@@ -207,7 +211,7 @@ def auth_port(c: EcsClient, r: str, sg: str, port: int) -> None:
 
 def ensure_vpc_and_vswitch(
     c: EcsClient,
-    cfg: EcsConfig,
+    cfg: EcsRuntimeConfig,
     allow_create_vpc: bool = True,
     allow_create_vswitch: bool = True,
 ) -> tuple[str, str]:
@@ -246,7 +250,7 @@ def ensure_vpc_and_vswitch(
 
 def ensure_net(
     c: EcsClient,
-    cfg: EcsConfig,
+    cfg: EcsRuntimeConfig,
     ports: Sequence[int] = (),
     allow_create_vpc: bool = True,
     allow_create_vswitch: bool = True,
@@ -290,7 +294,7 @@ def list_zones_for_instance_type(
     return zones
 
 
-def pick_instance_type(c: EcsClient, cfg: EcsConfig) -> Optional[tuple[str, str, Optional[str]]]:
+def pick_instance_type(c: EcsClient, cfg: EcsRuntimeConfig) -> Optional[tuple[str, str]]:
     spot = cfg.spot_strategy if cfg.use_spot else None
     req = ecs_models.DescribeAvailableResourceRequest(
         region_id=cfg.region_id,
@@ -298,8 +302,8 @@ def pick_instance_type(c: EcsClient, cfg: EcsConfig) -> Optional[tuple[str, str,
         resource_type="instance",
         instance_charge_type="PostPaid",
         spot_strategy=spot,
-        cores=cfg.min_cpu_cores,
-        memory=cfg.min_memory_gb,
+        cores=DEFAULT_MIN_CPU_CORES,
+        memory=DEFAULT_MIN_MEMORY_GB,
     )
     resp = c.describe_available_resource(req)
     for z in resp.body.available_zones.available_zone or []:
@@ -319,20 +323,14 @@ def pick_instance_type(c: EcsClient, cfg: EcsConfig) -> Optional[tuple[str, str,
         cands = [
             t
             for t in tmap.values()
-            if t.cpu_core_count == cfg.min_cpu_cores
+            if t.cpu_core_count == DEFAULT_MIN_CPU_CORES
             and t.memory_size
-            and cfg.min_memory_gb <= t.memory_size <= cfg.max_memory_gb
-            and (not cfg.cpu_vendor or cfg.cpu_vendor.lower() in (t.physical_processor_model or "").lower())
+            and DEFAULT_MIN_MEMORY_GB <= t.memory_size <= DEFAULT_MAX_MEMORY_GB
         ]
         if cands:
             cands.sort(key=lambda t: (t.memory_size, t.instance_type_id))
             s = cands[0]
-            v = (
-                "intel"
-                if "intel" in (s.physical_processor_model or "").lower()
-                else ("amd" if "amd" in (s.physical_processor_model or "").lower() else None)
-            )
-            return z.zone_id, s.instance_type_id, v
+            return z.zone_id, s.instance_type_id
     return None
 
 
@@ -377,7 +375,7 @@ def _instances_failed_by_history(c: EcsClient, r: str, instance_ids: Sequence[st
     return failed
 
 
-def _run_instances_once(c: EcsClient, cfg: EcsConfig, disk_size: int, amount: int, allow_partial_success: bool = False) -> list[str]:
+def _run_instances_once(c: EcsClient, cfg: EcsRuntimeConfig, disk_size: int, amount: int, allow_partial_success: bool = False) -> list[str]:
     dcat = _disk_category(c, cfg.region_id, cfg.zone_id)
     disk = ecs_models.RunInstancesRequestSystemDisk(category=dcat, size=str(disk_size)) if dcat else None
     name = f"{cfg.instance_name_prefix}-{int(time.time())}"
@@ -385,7 +383,7 @@ def _run_instances_once(c: EcsClient, cfg: EcsConfig, disk_size: int, amount: in
     req = ecs_models.RunInstancesRequest(
         region_id=cfg.region_id,
         zone_id=cfg.zone_id,
-        image_id=cfg.image_id or cfg.base_image_id,
+        image_id=cfg.image_id,
         instance_type=cfg.instance_type,
         security_group_id=cfg.security_group_id,
         v_switch_id=cfg.v_switch_id,
@@ -419,7 +417,7 @@ def _run_instances_once(c: EcsClient, cfg: EcsConfig, disk_size: int, amount: in
 
 def create_instance(
     c: EcsClient,
-    cfg: EcsConfig,
+    cfg: EcsRuntimeConfig,
     disk_size: int = 20,
     amount: int = 1,
     instance_types: Optional[Sequence[str]] = None,
@@ -428,7 +426,7 @@ def create_instance(
         raise ValueError("instance_type required")
     if not cfg.zone_id:
         raise ValueError("zone_id required")
-    img = cfg.image_id or cfg.base_image_id
+    img = cfg.image_id
     if not img:
         raise ValueError("image_id required")
     if not cfg.security_group_id:
@@ -493,7 +491,7 @@ def create_instance(
 
 def _create_instance_in_zone(
     c: EcsClient,
-    cfg: EcsConfig,
+    cfg: EcsRuntimeConfig,
     zone_id: str,
     *,
     amount: int = 1,
@@ -563,7 +561,7 @@ def ensure_keypair(c: EcsClient, r: str, name: str, key_path: str, allow_create:
 @dataclass
 class InstanceHandle:
     client: EcsClient
-    config: EcsConfig
+    config: EcsRuntimeConfig
     instance_id: str
     public_ip: str
 

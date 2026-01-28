@@ -5,7 +5,7 @@ import asyncio
 import json
 import math
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 import traceback
@@ -13,7 +13,18 @@ import traceback
 from loguru import logger
 from alibabacloud_ecs20140526 import models as ecs_models
 
-from ali_instances.config import AliCredentials, EcsConfig, client, DEFAULT_USER_TAG_VALUE
+from ali_instances.config import (
+    AliCredentials,
+    AliyunConfig,
+    AccountConfig,
+    EcsRuntimeConfig,
+    RegionConfig,
+    TypeConfig,
+    ZoneConfig,
+    client,
+    DEFAULT_USER_TAG_VALUE,
+    load_credentials,
+)
 from ali_instances.image_build import DEFAULT_IMAGE_NAME, ensure_images_in_regions
 from ali_instances.instance_prep import (
     allocate_public_ip,
@@ -44,49 +55,8 @@ class AliTypeSpec:
 
 
 @dataclass
-class TypeConfig:
-    name: str
-    nodes: Optional[int] = None
-
-
-@dataclass
-class ZoneConfig:
-    name: Optional[str] = None
-    subnet: Optional[str] = None
-
-
-@dataclass
-class RegionConfig:
-    name: str
-    count: int = 0
-    image: Optional[str] = None
-    base_image_name: Optional[str] = None
-    security_group_id: Optional[str] = None
-    zones: List[ZoneConfig] = field(default_factory=list)
-    type: Optional[List[TypeConfig]] = None
-
-
-@dataclass
-class AccountConfig:
-    access_key_id: str = ""
-    access_key_secret: str = ""
-    user_tag: Optional[str] = None
-    type: Optional[List[TypeConfig]] = None
-    regions: List[RegionConfig] = field(default_factory=list)
-    image: Optional[str] = None
-    base_image_name: Optional[str] = None
-    security_group_id: Optional[str] = None
-
-
-@dataclass
-class AliyunConfig:
-    aliyun: List[AccountConfig] = field(default_factory=list)
-
-
-@dataclass
 class RegionProvisionPlan:
     region_name: str
-    instance_type: str
     instance_type_candidates: List[str]
     nodes_per_host: int
     hosts_needed: int
@@ -217,8 +187,8 @@ def build_base_cfg(
     user_tag: str,
     region_cfg: RegionConfig,
     account_cfg: AccountConfig,
-) -> EcsConfig:
-    cfg = EcsConfig(credentials=creds, region_id=region_name)
+) -> EcsRuntimeConfig:
+    cfg = EcsRuntimeConfig(credentials=creds, region_id=region_name)
     cfg.ssh_username = "root"
     cfg.instance_name_prefix = prefix
     cfg.vpc_name = prefix
@@ -256,7 +226,7 @@ def ensure_images_for_regions(
         image_name_groups.setdefault(base_image_name, []).append(region_name)
 
     if image_name_groups:
-        cfg_template = EcsConfig(credentials=creds)
+        cfg_template = EcsRuntimeConfig(credentials=creds)
         all_region_names = [r.name for r in regions]
         for image_name, region_list in image_name_groups.items():
             image_ids_by_region.update(
@@ -369,8 +339,7 @@ def build_region_plan(
         hosts_needed = math.ceil(node_count / max(spec.nodes_per_host, 1))
         return RegionProvisionPlan(
             region_name=region_name,
-            instance_type=spec.name,
-            instance_type_candidates=instance_type_candidates,
+            instance_type_candidates=[spec.name] + [t for t in instance_type_candidates if t != spec.name],
             nodes_per_host=spec.nodes_per_host,
             hosts_needed=hosts_needed,
             zone_id=zone_id,
@@ -416,7 +385,7 @@ def build_plans_parallel(
     return asyncio.run(_build_all_plans())
 
 
-def wait_instance_ready(region_client, cfg: EcsConfig, instance_id: str) -> str:
+def wait_instance_ready(region_client, cfg: EcsRuntimeConfig, instance_id: str) -> str:
     st = wait_status(
         region_client,
         cfg.region_id,
@@ -503,7 +472,7 @@ def provision_region_batch(
 ) -> tuple[str, List[HostSpec]]:
     region_name = plan.region_name
     logger.info(
-        f"准备在 {region_name} 启动 {plan.hosts_needed} 台实例 (type={plan.instance_type}, zone={plan.zone_id})"
+        f"准备在 {region_name} 启动 {plan.hosts_needed} 台实例 (types={plan.instance_type_candidates}, zone={plan.zone_id})"
     )
 
     cfg = build_base_cfg(
@@ -519,7 +488,7 @@ def provision_region_batch(
     if plan.v_switch_id:
         cfg.v_switch_id = plan.v_switch_id
     cfg.image_id = image_id
-    cfg.instance_type = plan.instance_type
+    cfg.instance_type = plan.instance_type_candidates[0] if plan.instance_type_candidates else None
 
     ensure_keypair(
         region_client,
@@ -599,7 +568,7 @@ def resolve_aliyun_credentials(cfg: AccountConfig) -> AliCredentials:
     sk = cfg.access_key_secret.strip()
     if ak and sk:
         return AliCredentials(ak, sk)
-    return EcsConfig().credentials
+    return load_credentials()
 
 
 def provision_aliyun_hosts(
