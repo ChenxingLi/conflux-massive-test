@@ -1,7 +1,9 @@
+import json
 import os
 import subprocess
 import time
 from typing import List
+from urllib.parse import urlparse
 
 from loguru import logger
 
@@ -112,3 +114,49 @@ def ssh(ip_address: str, user: str = "ubuntu", command: str | List[str] | None =
             else:
                 logger.debug(f"{ip_address} SSH 失败，已达到最大重试次数")
                 raise
+
+
+def inject_dockerhub_mirrors(
+    ip_address: str,
+    *,
+    user: str = "root",
+    mirrors: List[str] | None = None,
+    max_retries: int = 3,
+    retry_delay: int = 15,
+):
+    if not mirrors:
+        mirrors = [
+            "https://docker.xuanyuan.me",
+            "https://docker.1ms.run",
+            "https://lispy.org",
+        ]
+    insecure_registries: List[str] = []
+    for mirror in mirrors:
+        parsed = urlparse(mirror)
+        if parsed.scheme == "http":
+            host = parsed.netloc or parsed.path
+            if host:
+                insecure_registries.append(host)
+    daemon_payload = {"registry-mirrors": mirrors}
+    if insecure_registries:
+        daemon_payload["insecure-registries"] = insecure_registries
+    daemon_config = json.dumps(daemon_payload, indent=2)
+    cmd = (
+        "set -e\n"
+        "mkdir -p /etc/docker\n"
+        "cat <<'EOF' > /etc/docker/daemon.json\n"
+        f"{daemon_config}\n"
+        "EOF\n"
+        "if command -v systemctl >/dev/null 2>&1; then\n"
+        "  systemctl restart docker\n"
+        "elif command -v service >/dev/null 2>&1; then\n"
+        "  service docker restart\n"
+        "fi\n"
+    )
+    return ssh(
+        ip_address,
+        user,
+        ["bash", "-lc", cmd],
+        max_retries=max_retries,
+        retry_delay=retry_delay,
+    )
