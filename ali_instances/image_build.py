@@ -11,7 +11,7 @@ from alibabacloud_ecs20140526.client import Client as EcsClient
 from loguru import logger
 
 from utils.wait_until import wait_until
-from .config import AliCredentials, EcsConfig, client
+from .config import AliCredentials, EcsRuntimeConfig, client
 from .instance_prep import (
     allocate_public_ip,
     create_instance,
@@ -34,7 +34,7 @@ DEFAULT_IMAGE_NAME = "conflux-docker-base"
 def _build_conflux_script_source() -> Path:
     return Path(__file__).resolve().parent.parent / "auxiliary" / "scripts" / "remote" / "build_conflux_binary.sh"
 
-def _img_name(prefix: str, ref: str) -> str:
+def _img_name() -> str:
     return DEFAULT_IMAGE_NAME
 
 
@@ -57,7 +57,7 @@ def find_img_in_regions(
     name: str,
 ) -> Optional[Tuple[str, str]]:
     for region in regions:
-        c = client(creds, region, None)
+        c = client(creds, region)
         img = find_img(c, region, name)
         if img:
             return region, img
@@ -73,7 +73,7 @@ async def ensure_image_in_region(
     poll_interval: int,
     wait_timeout: int,
 ) -> str:
-    c = client(creds, region, None)
+    c = client(creds, region)
     existing = find_img_info(c, region, image_name)
     if existing:
         image_id, status = existing
@@ -114,12 +114,12 @@ def build_base_image_in_region(
     poll_interval: int,
     wait_timeout: int,
 ) -> str:
-    cfg = EcsConfig(credentials=creds, region_id=region)
+    cfg = EcsRuntimeConfig(credentials=creds, region_id=region)
     cfg.poll_interval = poll_interval
     cfg.wait_timeout = wait_timeout
-    cfg.base_image_id = find_ubuntu(client(creds, region, None), region)
+    base_image_id = find_ubuntu(client(creds, region), region)
     logger.info(f"building base image {image_name} in {region}")
-    return create_server_image(cfg, prepare_fn=prepare_docker_server_image)
+    return create_server_image(cfg, base_image_id=base_image_id, prepare_fn=prepare_docker_server_image)
 
 
 def _copy_image(
@@ -132,7 +132,7 @@ def _copy_image(
     poll_interval: int,
     wait_timeout: int,
 ) -> str:
-    src_client = client(creds, src_region, None)
+    src_client = client(creds, src_region)
     try:
         resp = src_client.copy_image(
             ecs_models.CopyImageRequest(
@@ -147,7 +147,7 @@ def _copy_image(
             # Image with the same name already exists in the destination region
             # but is not available because it is still being copied.
             # query the image ID by name.
-            dest_client = client(creds, dest_region, None)
+            dest_client = client(creds, dest_region)
             existing = find_img_info(dest_client, dest_region, image_name)
             if existing:
                 logger.info(f"found existing image {existing[0]} of name {image_name} in {dest_region} of state {existing[1]}. Probably being copied. Will wait for it to be available.")
@@ -302,7 +302,7 @@ def wait_img(c: EcsClient, r: str, img: str, poll: int, timeout: int) -> None:
     wait_until(chk, timeout=timeout, retry_interval=poll)
 
 
-async def prepare_docker_server_image(host: str, cfg: EcsConfig) -> None:
+async def prepare_docker_server_image(host: str, cfg: EcsRuntimeConfig) -> None:
     await wait_ssh(host, cfg.ssh_username, cfg.ssh_private_key_path, cfg.wait_timeout)
     key_path = str(Path(cfg.ssh_private_key_path).expanduser())
     async with asyncssh.connect(host, username=cfg.ssh_username, client_keys=[key_path], known_hosts=None) as conn:
@@ -326,14 +326,14 @@ async def prepare_docker_server_image(host: str, cfg: EcsConfig) -> None:
 
 
 def create_server_image(
-    cfg: EcsConfig,
+    cfg: EcsRuntimeConfig,
+    *,
+    base_image_id: str,
     dry_run: bool = False,
-    prepare_fn: Callable[[str, EcsConfig], Coroutine[Any, Any, None]] = prepare_docker_server_image,
+    prepare_fn: Callable[[str, EcsRuntimeConfig], Coroutine[Any, Any, None]] = prepare_docker_server_image,
 ) -> str:
-    name = _img_name(cfg.image_prefix, cfg.conflux_git_ref)
-    c = client(cfg.credentials, cfg.region_id, cfg.endpoint)
-    if not cfg.base_image_id:
-        raise RuntimeError("base_image_id is required")
+    name = _img_name()
+    c = client(cfg.credentials, cfg.region_id)
     existing = find_img(c, cfg.region_id, name)
     if existing:
         logger.info(f"image exists: {existing}")
@@ -348,11 +348,12 @@ def create_server_image(
         sel = pick_instance_type(c, cfg)
     if not sel:
         raise RuntimeError("no instance type")
-    cfg.zone_id, cfg.instance_type, cfg.cpu_vendor = sel
+    cfg.zone_id, cfg.instance_type = sel
     ensure_net(c, cfg)
     ensure_keypair(c, cfg.region_id, cfg.key_pair_name, cfg.ssh_private_key_path)
     iid = ""
     try:
+        cfg.image_id = base_image_id
         iid = create_instance(c, cfg, disk_size=20)[0]
         logger.info(f"builder: {iid}")
         st = wait_status(c, cfg.region_id, iid, ["Stopped", "Running"], cfg.poll_interval, cfg.wait_timeout)
@@ -381,7 +382,7 @@ def create_server_image(
         wait_img(c, cfg.region_id, img, cfg.poll_interval, cfg.wait_timeout)
         return img
     finally:
-        if cfg.cleanup_builder_instance and iid:
+        if iid:
             try:
                 delete_instance(c, cfg.region_id, iid)
                 logger.info(f"builder deleted: {iid}")
