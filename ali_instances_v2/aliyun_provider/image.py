@@ -1,9 +1,8 @@
 from typing import List
 from alibabacloud_ecs20140526.models import DescribeImagesRequest, DescribeImagesResponseBodyImagesImage
-from alibabacloud_ecs20140526.client import Client as EcsClient
+from alibabacloud_ecs20140526.client import Client
 
-from ali_instances_v2.client_factory import ClientFactory
-from ali_instances_v2.infra_builder.types import ImageInfo
+from ali_instances_v2.infra_builder.infra_types import ImageInfo
 
 
 def as_image_info(rep: DescribeImagesResponseBodyImagesImage):
@@ -13,9 +12,7 @@ def as_image_info(rep: DescribeImagesResponseBodyImagesImage):
     return ImageInfo(image_id=rep.image_id, image_name=rep.image_name)
 
 
-def get_images_in_region(c: ClientFactory, region_id: str, image_name: str) -> List[ImageInfo]:
-    client = c.build(region_id)
-    
+def get_images_in_region(client: Client, region_id: str, image_name: str) -> List[ImageInfo]:    
     result = []
     
     page_number = 1

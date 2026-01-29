@@ -6,8 +6,9 @@ from typing import List
 
 from loguru import logger
 
-from ali_instances_v2.client_factory import ClientFactory
+from ali_instances_v2.aliyun_provider.client_factory import AliyunClient
 from ali_instances_v2.aliyun_provider.instance import create_instances_in_zone
+from ali_instances_v2.infra_builder.interface import IEcsClient
 from host_spec import HostSpec
 
 from .region_create_manager import RegionCreateManager
@@ -16,9 +17,9 @@ from .types import RegionInfo, InstanceConfig, InstanceType
     
             
     
-def create_instances_in_region(c: ClientFactory, cfg: InstanceConfig, region_info: RegionInfo, instance_types: List[InstanceType], nodes: int):
+def create_instances_in_region(client: IEcsClient, cfg: InstanceConfig, region_info: RegionInfo, instance_types: List[InstanceType], nodes: int):
     mgr = RegionCreateManager(region_info.id, nodes)
-    thread1 = threading.Thread(target=mgr.describe_instances_loop, args=(c,))
+    thread1 = threading.Thread(target=mgr.describe_instances_loop, args=(client,))
     thread1.start()
     thread2 = threading.Thread(target=mgr.wait_for_ssh_loop)
     thread2.start()
@@ -27,7 +28,7 @@ def create_instances_in_region(c: ClientFactory, cfg: InstanceConfig, region_inf
     # TODO: 使用 stock 询价方式确定 default type?
     default_instance_type = instance_types[0]
     amount = math.ceil(nodes / default_instance_type.nodes)
-    _try_create_in_single_zone(c, mgr, cfg, region_info, default_instance_type, amount)
+    _try_create_in_single_zone(client, mgr, cfg, region_info, default_instance_type, amount)
     
     
     # 排列组合所有区域，可以在这里配置更复杂的尝试策略
@@ -41,7 +42,7 @@ def create_instances_in_region(c: ClientFactory, cfg: InstanceConfig, region_inf
             logger.success(f"Region {region_info.id} launch complete")
             return _make_host_spec(mgr, region_info)
             
-        instance_ids = create_instances_in_zone(c, cfg, region_info, zone_info, instance_type, amount, allow_partial_success=True)
+        instance_ids = client.create_instances_in_zone(cfg, region_info, zone_info, instance_type, amount, allow_partial_success=True)
         if len(instance_ids) < amount:
             # 当前实例组合可用已经耗尽，尝试下一组
             try:
@@ -68,9 +69,9 @@ def _make_host_spec(mgr: RegionCreateManager, region_info: RegionInfo):
                      instance_id=instance.instance_id)
             for (instance, ip) in ready_instances]
     
-def _try_create_in_single_zone(c: ClientFactory, mgr: RegionCreateManager, cfg: InstanceConfig, region_info: RegionInfo, instance_type: InstanceType, amount: int):
+def _try_create_in_single_zone(client: IEcsClient, mgr: RegionCreateManager, cfg: InstanceConfig, region_info: RegionInfo, instance_type: InstanceType, amount: int):
     for zone_info in region_info.zones.values():
-        ids = create_instances_in_zone(c, cfg, region_info, zone_info, instance_type, amount)
+        ids = client.create_instances_in_zone(cfg, region_info, zone_info, instance_type, amount)
         if len(ids) == 0:
             continue
         elif len(ids) < amount:

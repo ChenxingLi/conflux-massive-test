@@ -1,23 +1,16 @@
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Tuple, TypeVar
-
-from alibabacloud_ecs20140526 import models as ecs_models
-from alibabacloud_ecs20140526.client import Client as EcsClient
-from alibabacloud_tea_openapi.models import Config as AliyunConfig
+from dataclasses import dataclass
+from typing import Callable, Dict, List, TypeVar
 
 from loguru import logger
 
-from ali_instances_v2.client_factory import ClientFactory
+from ali_instances_v2.infra_builder.infra_types import KeyPairRequestConfig
+from ali_instances_v2.infra_builder.interface import IEcsClient
 from request_config import AliyunRequestConfig
 
-from ..aliyun_provider.security_group import get_security_groups_in_region, create_security_group
-from ..aliyun_provider.v_switch import get_v_switchs_in_region, create_v_switch, allocate_vacant_cidr_block
-from ..aliyun_provider.vpc import get_vpcs_in_region, create_vpc
-from ..aliyun_provider.key_pair import KeyPairRequestConfig, get_keypairs_in_region, create_keypair
-from ..aliyun_provider.image import get_images_in_region
 from ..types import RegionInfo, ZoneInfo
 
+DEFAULT_VPC_CIDR = "10.0.0.0/16"
 
 @dataclass
 class InfraProvider:
@@ -25,24 +18,6 @@ class InfraProvider:
 
     def get_region(self, region_id: str) -> RegionInfo:
         return self.regions[region_id]
-
-
-
-def get_zone_ids_in_region(c: ClientFactory, region_id: str) -> List[str]:
-    client = c.build(region_id)
-    rep = client.describe_zones(ecs_models.DescribeZonesRequest(
-        region_id=region_id, verbose=False))
-    return [zone.zone_id for zone in rep.body.zones.zone]
-
-
-T = TypeVar('T')
-
-
-def _find(inputs: List[T], cond: Callable[[T], bool]):
-    for i in inputs:
-        if cond(i):
-            return i
-    return None
 
 @dataclass
 class InfraRequest:
@@ -68,15 +43,15 @@ class InfraRequest:
                             allow_create=allow_create
                             )
 
-    def ensure_infras(self, client_factory: ClientFactory) -> InfraProvider:
+    def ensure_infras(self, client: IEcsClient) -> InfraProvider:
         with ThreadPoolExecutor(max_workers=5) as executor:
             regions = list(executor.map(lambda region_id: self._ensure_region(
-                client_factory, region_id), self.region_ids))
+                client, region_id), self.region_ids))
 
         return InfraProvider(regions={reg.id: reg for reg in regions})
 
-    def _ensure_region(self, client: ClientFactory, region_id: str) -> RegionInfo:
-        zone_ids = get_zone_ids_in_region(client, region_id)
+    def _ensure_region(self, client: IEcsClient, region_id: str) -> RegionInfo:
+        zone_ids = client.get_zone_ids_in_region(region_id)
         image_id = self._ensure_image_in_region(client, region_id)
 
         vpc_id = self._ensure_vpc_in_region(client, region_id)
@@ -91,17 +66,17 @@ class InfraRequest:
 
         return RegionInfo(id=region_id, zones=zones, image_id=image_id, security_group_id=security_group_id, vpc_id=vpc_id, key_pair_name=self.key_pair.key_pair_name, key_path=self.key_pair.key_path)
 
-    def _ensure_image_in_region(self, client: ClientFactory, region_id: str):
-        images = _find(get_images_in_region(
-            client, region_id, self.image_name), lambda im: im.image_name == self.image_name)
+    def _ensure_image_in_region(self, client: IEcsClient, region_id: str):
+        images = _find(client.get_images_in_region(
+            region_id, self.image_name), lambda im: im.image_name == self.image_name)
         if images is not None:
             return images.image_id
         else:
             raise Exception(
                 f"Image {self.image_name} not found in region {region_id}")
 
-    def _ensure_vpc_in_region(self, client: ClientFactory, region_id: str) -> str:
-        vpc = _find(get_vpcs_in_region(client, region_id),
+    def _ensure_vpc_in_region(self, client: IEcsClient, region_id: str) -> str:
+        vpc = _find(client.get_vpcs_in_region(region_id),
                     lambda vpc: vpc.vpc_name == self.vpc_name)
         if vpc is not None:
             logger.info(
@@ -110,7 +85,7 @@ class InfraRequest:
         elif self.allow_create:
             logger.info(
                 f"Cannot find VPC {self.vpc_name} in {region_id}, creating...")
-            vpc_id = create_vpc(client, region_id, self.vpc_name)
+            vpc_id = client.create_vpc(region_id, self.vpc_name, DEFAULT_VPC_CIDR)
             logger.info(
                 f"Created VPC {self.vpc_name} in {region_id}: {vpc_id}")
             return vpc_id
@@ -118,8 +93,8 @@ class InfraRequest:
             raise Exception(
                 f"VPC {self.vpc_name} not found in region {region_id}")
 
-    def _ensure_security_group_in_region(self, client: ClientFactory, region_id: str, vpc_id: str) -> str:
-        sg = _find(get_security_groups_in_region(client, region_id, vpc_id),
+    def _ensure_security_group_in_region(self, client: IEcsClient, region_id: str, vpc_id: str) -> str:
+        sg = _find(client.get_security_groups_in_region(region_id, vpc_id),
                    lambda sg: sg.security_group_name == self.security_group_name)
         if sg is not None:
             logger.info(
@@ -128,8 +103,8 @@ class InfraRequest:
         elif self.allow_create:
             logger.info(
                 f"Cannot find Security Group {self.security_group_name} in {region_id}/{vpc_id}, creating...")
-            security_group_id = create_security_group(
-                client, region_id, vpc_id, self.security_group_name)
+            security_group_id = client.create_security_group(
+                region_id, vpc_id, self.security_group_name)
             logger.info(
                 f"Created Security Group {self.security_group_name} in {region_id}/{vpc_id}: {security_group_id}")
             return security_group_id
@@ -137,9 +112,9 @@ class InfraRequest:
             raise Exception(
                 f"Security group {self.security_group_name} not found in {region_id}/{vpc_id}")
 
-    def _ensure_key_pair_in_region(self, client: ClientFactory, region_id: str):
-        key_pair = get_keypairs_in_region(
-            client, region_id, self.key_pair.key_pair_name)
+    def _ensure_key_pair_in_region(self, client: IEcsClient, region_id: str):
+        key_pair = client.get_keypairs_in_region(
+            region_id, self.key_pair.key_pair_name)
 
         if key_pair is not None and key_pair.finger_print == self.key_pair.finger_print:
             logger.info(
@@ -149,7 +124,7 @@ class InfraRequest:
             # TODO: 支持在指纹不一致的时候删除重建
             logger.info(
                 f"Cannot find KeyPair {self.key_pair.key_pair_name} in {region_id}, creating...")
-            create_keypair(client, region_id, self.key_pair)
+            client.create_keypair(region_id, self.key_pair)
             logger.info(
                 f"Created KeyPair {self.key_pair.key_pair_name} in {region_id}")
             return
@@ -161,8 +136,8 @@ class InfraRequest:
                 raise Exception(
                     f"Key pair {self.key_pair.key_pair_name} has inconsistent finger print in region {region_id}")
 
-    def _ensure_v_switches_in_region(self, client: ClientFactory, region_id: str, zone_ids: List[str], vpc_id: str) -> Dict[str, ZoneInfo]:
-        v_switches = get_v_switchs_in_region(client, region_id, vpc_id)
+    def _ensure_v_switches_in_region(self, client: IEcsClient, region_id: str, zone_ids: List[str], vpc_id: str) -> Dict[str, ZoneInfo]:
+        v_switches = client.get_v_switchs_in_region(region_id, vpc_id)
 
         zones: List[ZoneInfo] = []
 
@@ -187,8 +162,8 @@ class InfraRequest:
                 allocated_cidr_block = allocate_vacant_cidr_block(
                     occupied_blocks, prefix=20)
                 occupied_blocks.append(allocated_cidr_block)
-                v_switch_id = create_v_switch(
-                    client, region_id, zone_id, vpc_id, self.v_switch_name, allocated_cidr_block)
+                v_switch_id = client.create_v_switch(
+                    region_id, zone_id, vpc_id, self.v_switch_name, allocated_cidr_block)
 
                 logger.info(
                     f"Create VSwitch {self.v_switch_name} in region {region_id} zone {zone_id}: {v_switch_id}")
@@ -198,3 +173,29 @@ class InfraRequest:
                     f"Cannot found v-switch {self.v_switch_name} in region {region_id} zone {zone_id}")
 
         return {zone.id: zone for zone in zones}
+    
+def allocate_vacant_cidr_block(occupied_blocks: List[str], prefix: int = 24, vpc_cidr: str = DEFAULT_VPC_CIDR):
+    import ipaddress
+    
+    # 将已占用的 CIDR 转换为网络对象集合
+    occupied = {ipaddress.ip_network(block) for block in occupied_blocks if block}
+    
+    # 遍历 VPC CIDR 的所有指定前缀长度的子网
+    for subnet in ipaddress.ip_network(vpc_cidr).subnets(new_prefix=prefix):
+        # 检查该子网是否与所有已占用的块都不重叠
+        if all(not subnet.overlaps(used) for used in occupied):
+            return str(subnet)
+    
+    # 如果没有找到可用的子网
+    raise RuntimeError(
+        f"No available /{prefix} subnet found in {vpc_cidr}. "
+        f"All subnets are occupied or overlapping."
+    )
+    
+T = TypeVar('T')
+
+def _find(inputs: List[T], cond: Callable[[T], bool]):
+    for i in inputs:
+        if cond(i):
+            return i
+    return None

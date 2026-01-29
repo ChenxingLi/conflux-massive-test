@@ -1,8 +1,8 @@
 from typing import List
 from alibabacloud_ecs20140526.models import DescribeSecurityGroupsRequest, DescribeSecurityGroupsResponseBodySecurityGroupsSecurityGroup, CreateSecurityGroupRequest, AuthorizeSecurityGroupRequest, AuthorizeSecurityGroupRequestPermissions
 
-from ali_instances_v2.client_factory import ClientFactory
-from ali_instances_v2.infra_builder.types import SecurityGroupInfo
+from alibabacloud_ecs20140526.client import Client
+from ali_instances_v2.infra_builder.infra_types import SecurityGroupInfo
     
 def as_security_group_info(rep: DescribeSecurityGroupsResponseBodySecurityGroupsSecurityGroup):
     assert type(rep.security_group_id) is str
@@ -10,9 +10,7 @@ def as_security_group_info(rep: DescribeSecurityGroupsResponseBodySecurityGroups
     
     return SecurityGroupInfo(security_group_id=rep.security_group_id, security_group_name=rep.security_group_name)
 
-def get_security_groups_in_region(c: ClientFactory, region_id: str, vpc_id: str) -> List[SecurityGroupInfo]:
-    client = c.build(region_id)
-
+def get_security_groups_in_region(client: Client, region_id: str, vpc_id: str) -> List[SecurityGroupInfo]:
     result = []
     
     page_number = 1
@@ -25,8 +23,7 @@ def get_security_groups_in_region(c: ClientFactory, region_id: str, vpc_id: str)
     
     return result
 
-def create_security_group(c: ClientFactory, region_id: str, vpc_id: str, security_group_name: str):
-    client = c.build(region_id)
+def create_security_group(client: Client, region_id: str, vpc_id: str, security_group_name: str):
     rep = client.create_security_group(CreateSecurityGroupRequest(region_id=region_id, vpc_id=vpc_id, security_group_name=security_group_name, description="conflux"))
     
     security_group_id = rep.body.security_group_id

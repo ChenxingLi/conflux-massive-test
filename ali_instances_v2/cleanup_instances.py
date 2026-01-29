@@ -7,7 +7,7 @@ from alibabacloud_ecs20140526.client import Client as EcsClient
 from dotenv import load_dotenv
 from loguru import logger
 
-from ali_instances_v2.client_factory import ClientFactory
+from ali_instances_v2.aliyun_provider.client_factory import AliyunClient
 from ali_instances_v2.types import DEFAULT_COMMON_TAG_KEY, DEFAULT_COMMON_TAG_VALUE, DEFAULT_USER_TAG_KEY
 
 REGIONS = [
@@ -62,7 +62,7 @@ def _delete_instances(c: EcsClient, region_id: str, instances: List[InstanceInfo
             time.sleep(5)
     
     
-def _delete_in_region(region_id: str, factory: ClientFactory, predicate: Callable[[InstanceInfo], bool]):
+def _delete_in_region(region_id: str, factory: AliyunClient, predicate: Callable[[InstanceInfo], bool]):
     logger.info(f"Cleanup region {region_id}")
     client = factory.build(region_id)
     instances = _get_instances(client, region_id)
@@ -72,7 +72,7 @@ def _delete_in_region(region_id: str, factory: ClientFactory, predicate: Callabl
         _delete_instances(client, region_id, instances)
     logger.success(f"Cleanup region {region_id} done")
 
-def delete_instances(factory: ClientFactory, predicate: Callable[[InstanceInfo], bool]):
+def delete_instances(factory: AliyunClient, predicate: Callable[[InstanceInfo], bool]):
     with ThreadPoolExecutor(max_workers=10) as executor:
         _ = list(executor.map(lambda region: _delete_in_region(region, factory, predicate), REGIONS))
         
@@ -83,7 +83,7 @@ def check_tag(instance: InstanceInfo, user_prefix: str):
         
 if __name__ == "__main__":
     load_dotenv()
-    factory = ClientFactory.load_from_env()
+    factory = AliyunClient.load_from_env()
     
     delete_instances(factory, lambda instance: check_tag(instance, "lichenxing-alpha"))
         

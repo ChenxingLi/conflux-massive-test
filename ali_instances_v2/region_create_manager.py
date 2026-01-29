@@ -9,8 +9,7 @@ from queue import Queue
 
 from loguru import logger
 
-from ali_instances_v2.client_factory import ClientFactory
-from ali_instances_v2.aliyun_provider.instance import describe_instance_status
+from ali_instances_v2.infra_builder.interface import IEcsClient
 from utils.wait_until import WaitUntilTimeoutError, wait_until
 
 from .types import Instance, InstanceType
@@ -77,7 +76,7 @@ class RegionCreateManager:
                 raise Exception(
                     f"Region {self.region_id} wait for event timeout")
 
-    def describe_instances_loop(self, factory: ClientFactory, check_interval: float = 3.0):
+    def describe_instances_loop(self, client: IEcsClient, check_interval: float = 3.0):
         processed_instances: Set[str] = set()
 
         while True:
@@ -86,23 +85,22 @@ class RegionCreateManager:
                 to_check_instances = set(
                     self.pending_instances) - processed_instances
 
-            running_instances, pending_instances = describe_instance_status(
-                factory, self.region_id, instance_ids=list(to_check_instances))
+            instance_status = client.describe_instance_status(self.region_id, instance_ids=list(to_check_instances))
 
-            if len(pending_instances) > 0:
+            if len(instance_status.pending_instances) > 0:
                 logger.debug(
-                    f"Instances {pending_instances} pending in region {self.region_id}")
+                    f"Instances {instance_status.pending_instances} pending in region {self.region_id}")
 
             # 将 running instance 转入下一阶段
-            if len(running_instances) > 0:
+            if len(instance_status.running_instances) > 0:
                 logger.success(
-                    f"Instances {running_instances} running in region {self.region_id}")
-                processed_instances |= set(running_instances)
-                self._running_queue.put(running_instances)
+                    f"Instances {instance_status.running_instances} running in region {self.region_id}")
+                processed_instances |= set(instance_status.running_instances)
+                self._running_queue.put(instance_status.running_instances)
 
             # 将 lost instance 删除
             lost_instances = to_check_instances - \
-                set(running_instances) - pending_instances
+                set(instance_status.running_instances) - instance_status.pending_instances
 
             with self._lock:
                 if len(lost_instances) > 0:

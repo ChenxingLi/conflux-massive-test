@@ -1,38 +1,17 @@
-from dataclasses import dataclass
-from optparse import Option
 from typing import List, Optional
 from alibabacloud_ecs20140526.models import DescribeKeyPairsResponseBodyKeyPairsKeyPair, DescribeKeyPairsRequest, ImportKeyPairRequest
-from alibabacloud_ecs20140526.client import Client as EcsClient
+from alibabacloud_ecs20140526.client import Client
 
-from ali_instances_v2.client_factory import ClientFactory
-from ali_instances_v2.infra_builder.types import KeyPairInfo
+from ali_instances_v2.infra_builder.infra_types import KeyPairInfo, KeyPairRequestConfig
 from utils.wait_until import wait_until
 
-from ..infra_builder.crypto import get_fingerprint_from_key, get_public_key_body
     
 def as_key_pair_info(rep: DescribeKeyPairsResponseBodyKeyPairsKeyPair):
     assert type(rep.key_pair_finger_print) is str
     return KeyPairInfo(finger_print=rep.key_pair_finger_print)
     
-@dataclass
-class KeyPairRequestConfig:
-    key_path: str
-    key_pair_name: str
-    
-    @property
-    def finger_print(self):
-        return get_fingerprint_from_key(self.key_path, "md5")
-        
-    @property
-    def public_key(self):
-        return get_public_key_body(self.key_path)
-    
-    
 
-
-def get_keypairs_in_region(c: ClientFactory, region_id: str, key_pair_name: str) -> Optional[KeyPairInfo]:
-    client = c.build(region_id)
-
+def get_keypairs_in_region(client: Client, region_id: str, key_pair_name: str) -> Optional[KeyPairInfo]:
     result = []
     
     page_number = 1
@@ -50,9 +29,7 @@ def get_keypairs_in_region(c: ClientFactory, region_id: str, key_pair_name: str)
     else:
         raise Exception(f"Unexpected: multiple result for key pair {key_pair_name} in {region_id}")
 
-def create_keypair(c: ClientFactory, region_id: str, key_pair: KeyPairRequestConfig):
-    client = c.build(region_id)
-    
+def create_keypair(client: Client, region_id: str, key_pair: KeyPairRequestConfig):    
     client.import_key_pair(ImportKeyPairRequest(region_id=region_id, key_pair_name=key_pair.key_pair_name, public_key_body=key_pair.public_key))
     
     def _available():

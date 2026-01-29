@@ -7,7 +7,7 @@ import tomllib
 from dotenv import load_dotenv
 from loguru import logger
 
-from ali_instances_v2.client_factory import ClientFactory
+from ali_instances_v2.aliyun_provider.client_factory import AliyunClient
 from ali_instances_v2.create_instance_in_region import create_instances_in_region
 from ali_instances_v2.infra_builder.build import InfraRequest
 from .types import InstanceConfig, InstanceType
@@ -70,7 +70,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     load_dotenv()
-    client_factory = ClientFactory.load_from_env()
+    client_factory = AliyunClient.load_from_env()
 
     with open("request_config.toml", "rb") as f:
         data = tomllib.load(f)

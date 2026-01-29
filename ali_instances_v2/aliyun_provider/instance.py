@@ -7,23 +7,22 @@ from typing import List
 from alibabacloud_ecs20140526 import models as ecs_models
 from loguru import logger
 
-from ali_instances_v2.client_factory import ClientFactory
+from ali_instances_v2.infra_builder.infra_types import InstanceStatus
+from alibabacloud_ecs20140526.client import Client
 
 
 from ..types import RegionInfo, ZoneInfo, InstanceConfig, InstanceType
     
 
 def create_instances_in_zone(
-    c: ClientFactory,
+    client: Client,
     cfg: InstanceConfig,
     region_info: RegionInfo,
     zone_info: ZoneInfo,
     instance_type: InstanceType,
     amount: int,
     allow_partial_success: bool = False,
-) -> list[str]:
-    client = c.build(region_info.id)
-    
+) -> list[str]:    
     disk = ecs_models.RunInstancesRequestSystemDisk(category="cloud_essd", size=str(cfg.disk_size))
     name = f"{cfg.instance_name_prefix}-{int(time.time())}"
         
@@ -64,12 +63,10 @@ def create_instances_in_zone(
         logger.error(e)
         return []
     
-def describe_instance_status(c: ClientFactory, region_id: str, instance_ids: List[str]):
+def describe_instance_status(client: Client, region_id: str, instance_ids: List[str]):
     running_instances = dict()
     pending_instances = set()
     
-    client = c.build(region_id)
-
     for i in range(0, len(instance_ids), 100):
         query_chunk = instance_ids[i: i+100]
         
@@ -84,4 +81,4 @@ def describe_instance_status(c: ClientFactory, region_id: str, instance_ids: Lis
         pending_instances.update({i.instance_id for i in instance_status if i.status in [
                                  "Starting", "Pending", "Stopped"]})
         time.sleep(0.5)
-    return running_instances, pending_instances
+    return InstanceStatus(running_instances=running_instances, pending_instances=pending_instances)
