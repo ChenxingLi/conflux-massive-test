@@ -70,7 +70,7 @@ def get_public_key_body(path: str) -> str:
     except ValueError:
         private_key = serialization.load_ssh_private_key(
             key_data, 
-            password=pwd, 
+            password=None, 
             backend=default_backend()
         )
     

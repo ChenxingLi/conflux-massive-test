@@ -2,7 +2,7 @@ from typing import List, Optional
 from alibabacloud_ecs20140526.models import DescribeKeyPairsResponseBodyKeyPairsKeyPair, DescribeKeyPairsRequest, ImportKeyPairRequest
 from alibabacloud_ecs20140526.client import Client
 
-from ali_instances_v2.infra_builder.infra_types import KeyPairInfo, KeyPairRequestConfig
+from ali_instances_v2.create_instances.types import KeyPairInfo, KeyPairRequestConfig
 from utils.wait_until import wait_until
 
     
@@ -33,7 +33,7 @@ def create_keypair(client: Client, region_id: str, key_pair: KeyPairRequestConfi
     client.import_key_pair(ImportKeyPairRequest(region_id=region_id, key_pair_name=key_pair.key_pair_name, public_key_body=key_pair.public_key))
     
     def _available():
-        remote_key_pair = get_keypairs_in_region(c, region_id, key_pair.key_pair_name)
+        remote_key_pair = get_keypairs_in_region(client, region_id, key_pair.key_pair_name)
         return remote_key_pair is not None and remote_key_pair.finger_print == key_pair.finger_print
     
     wait_until(_available, timeout=10, retry_interval=3)

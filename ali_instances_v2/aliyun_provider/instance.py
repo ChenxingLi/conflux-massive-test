@@ -3,16 +3,19 @@ import time
 import traceback
 from typing import List
 
-
-from alibabacloud_ecs20140526 import models as ecs_models
+from alibabacloud_ecs20140526 import models as ali_models
 from loguru import logger
 
-from ali_instances_v2.infra_builder.infra_types import InstanceStatus
+from ..create_instances.types import InstanceStatus, RegionInfo, ZoneInfo, InstanceType
+from ..create_instances.instance_config import InstanceConfig, DEFAULT_COMMON_TAG_KEY, DEFAULT_COMMON_TAG_VALUE
 from alibabacloud_ecs20140526.client import Client
-
-
-from ..types import RegionInfo, ZoneInfo, InstanceConfig, InstanceType
     
+
+def _instance_tags(cfg: InstanceConfig) -> List[ali_models.RunInstancesRequestTag]:
+    return [
+        ali_models.RunInstancesRequestTag(key=DEFAULT_COMMON_TAG_KEY, value=DEFAULT_COMMON_TAG_VALUE),
+        ali_models.RunInstancesRequestTag(key=cfg.user_tag_key, value=cfg.user_tag_value)
+    ]
 
 def create_instances_in_zone(
     client: Client,
@@ -23,10 +26,10 @@ def create_instances_in_zone(
     amount: int,
     allow_partial_success: bool = False,
 ) -> list[str]:    
-    disk = ecs_models.RunInstancesRequestSystemDisk(category="cloud_essd", size=str(cfg.disk_size))
+    disk = ali_models.RunInstancesRequestSystemDisk(category="cloud_essd", size=str(cfg.disk_size))
     name = f"{cfg.instance_name_prefix}-{int(time.time())}"
         
-    req = ecs_models.RunInstancesRequest(
+    req = ali_models.RunInstancesRequest(
         region_id=region_info.id,
         zone_id=zone_info.id,
         image_id=region_info.image_id,
@@ -38,7 +41,7 @@ def create_instances_in_zone(
         internet_max_bandwidth_out=cfg.internet_max_bandwidth_out,
         internet_charge_type="PayByTraffic",
         instance_charge_type="PostPaid",
-        tag=cfg.aliyun_instance_tags,
+        tag=_instance_tags(cfg),
         amount=amount,
         system_disk=disk,
     )
@@ -70,7 +73,7 @@ def describe_instance_status(client: Client, region_id: str, instance_ids: List[
     for i in range(0, len(instance_ids), 100):
         query_chunk = instance_ids[i: i+100]
         
-        rep = client.describe_instances(ecs_models.DescribeInstancesRequest(
+        rep = client.describe_instances(ali_models.DescribeInstancesRequest(
             region_id=region_id, page_size=100, instance_ids=json.dumps(query_chunk)))
         instance_status = rep.body.instances.instance
 

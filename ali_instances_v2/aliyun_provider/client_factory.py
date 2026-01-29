@@ -12,9 +12,9 @@ from .vpc import create_vpc, get_vpcs_in_region
 from .zone import get_zone_ids_in_region
 from .instance import create_instances_in_zone, describe_instance_status
 
-from ali_instances_v2.infra_builder.interface import IEcsClient
-from ali_instances_v2.types import InstanceConfig, InstanceType, RegionInfo, ZoneInfo
-from ali_instances_v2.infra_builder.infra_types import ImageInfo, InstanceStatus, KeyPairInfo, KeyPairRequestConfig, SecurityGroupInfo, VSwitchInfo, VpcInfo
+from ..create_instances.interface import IEcsClient
+from ..create_instances.instance_config import InstanceConfig
+from ..create_instances.types import ImageInfo, InstanceStatus, KeyPairInfo, KeyPairRequestConfig, SecurityGroupInfo, VSwitchInfo, VpcInfo, InstanceType, RegionInfo, ZoneInfo
 
 
 @dataclass

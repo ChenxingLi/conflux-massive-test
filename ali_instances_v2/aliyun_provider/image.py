@@ -2,7 +2,7 @@ from typing import List
 from alibabacloud_ecs20140526.models import DescribeImagesRequest, DescribeImagesResponseBodyImagesImage
 from alibabacloud_ecs20140526.client import Client
 
-from ali_instances_v2.infra_builder.infra_types import ImageInfo
+from ali_instances_v2.create_instances.types import ImageInfo
 
 
 def as_image_info(rep: DescribeImagesResponseBodyImagesImage):

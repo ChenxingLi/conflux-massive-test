@@ -1,8 +1,35 @@
 from dataclasses import dataclass
 from typing import Dict, Set
 
-from ali_instances_v2.infra_builder.crypto import get_fingerprint_from_key, get_public_key_body
+from ali_instances_v2.create_instances.crypto import get_fingerprint_from_key, get_public_key_body
 
+@dataclass
+class ZoneInfo:
+    id: str
+    v_switch_id: str
+    
+@dataclass
+class RegionInfo:
+    id: str
+    zones: Dict[str, ZoneInfo]
+    security_group_id: str
+    vpc_id: str
+    image_id: str
+    key_pair_name: str
+    key_path: str
+    
+    def get_zone(self, zone_id: str)-> ZoneInfo:
+        return self.zones[zone_id]
+
+@dataclass(frozen=True)
+class InstanceType:
+    name: str
+    nodes: int
+    
+@dataclass(frozen=True)
+class Instance:
+    instance_id: str
+    type: InstanceType
 
 @dataclass
 class InstanceStatus:

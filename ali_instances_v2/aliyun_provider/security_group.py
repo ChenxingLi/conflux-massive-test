@@ -2,7 +2,7 @@ from typing import List
 from alibabacloud_ecs20140526.models import DescribeSecurityGroupsRequest, DescribeSecurityGroupsResponseBodySecurityGroupsSecurityGroup, CreateSecurityGroupRequest, AuthorizeSecurityGroupRequest, AuthorizeSecurityGroupRequestPermissions
 
 from alibabacloud_ecs20140526.client import Client
-from ali_instances_v2.infra_builder.infra_types import SecurityGroupInfo
+from ali_instances_v2.create_instances.types import SecurityGroupInfo
     
 def as_security_group_info(rep: DescribeSecurityGroupsResponseBodySecurityGroupsSecurityGroup):
     assert type(rep.security_group_id) is str

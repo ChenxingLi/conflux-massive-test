@@ -4,11 +4,9 @@ from typing import Callable, Dict, List, TypeVar
 
 from loguru import logger
 
-from ali_instances_v2.infra_builder.infra_types import KeyPairRequestConfig
-from ali_instances_v2.infra_builder.interface import IEcsClient
+from .types import KeyPairRequestConfig, RegionInfo, ZoneInfo
+from .interface import IEcsClient
 from request_config import AliyunRequestConfig
-
-from ..types import RegionInfo, ZoneInfo
 
 DEFAULT_VPC_CIDR = "10.0.0.0/16"
 

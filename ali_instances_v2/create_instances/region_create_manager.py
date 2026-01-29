@@ -9,10 +9,9 @@ from queue import Queue
 
 from loguru import logger
 
-from ali_instances_v2.infra_builder.interface import IEcsClient
-from utils.wait_until import WaitUntilTimeoutError, wait_until
-
+from .interface import IEcsClient
 from .types import Instance, InstanceType
+from utils.wait_until import WaitUntilTimeoutError, wait_until
 
 SSH_CHECK_POOL = ThreadPoolExecutor(max_workers=2000)
 

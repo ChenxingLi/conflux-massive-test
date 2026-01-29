@@ -2,13 +2,13 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 import time
 from typing import Callable, Dict, List, Any
-from alibabacloud_ecs20140526.models import DescribeInstancesRequest, DeleteInstancesRequest, DescribeInstancesResponseBodyInstancesInstance, DescribeInstancesResponseBodyInstancesInstanceTagsTag
+from alibabacloud_ecs20140526.models import DescribeInstancesRequest, DeleteInstancesRequest, DescribeInstancesResponseBodyInstancesInstance
 from alibabacloud_ecs20140526.client import Client as EcsClient
 from dotenv import load_dotenv
 from loguru import logger
 
 from ali_instances_v2.aliyun_provider.client_factory import AliyunClient
-from ali_instances_v2.types import DEFAULT_COMMON_TAG_KEY, DEFAULT_COMMON_TAG_VALUE, DEFAULT_USER_TAG_KEY
+from ali_instances_v2.create_instances.instance_config import DEFAULT_COMMON_TAG_KEY, DEFAULT_COMMON_TAG_VALUE, DEFAULT_USER_TAG_KEY
 
 REGIONS = [
     "ap-southeast-5",  # Indonesia

@@ -1,7 +1,7 @@
 from typing import List
 from alibabacloud_ecs20140526.models import DescribeVpcsResponseBodyVpcsVpc, DescribeVpcsRequest, CreateVpcRequest
 
-from ali_instances_v2.infra_builder.infra_types import VpcInfo
+from ali_instances_v2.create_instances.types import VpcInfo
 from alibabacloud_ecs20140526.client import Client
 from utils.wait_until import wait_until
     

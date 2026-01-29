@@ -3,7 +3,7 @@ from typing import List
 from alibabacloud_ecs20140526.models import DescribeVSwitchesResponseBodyVSwitchesVSwitch, DescribeVSwitchesRequest, CreateVSwitchRequest
 from alibabacloud_ecs20140526.client import Client
 
-from ..infra_builder.infra_types import VSwitchInfo
+from ..create_instances.types import VSwitchInfo
 from utils.wait_until import wait_until
 
 
