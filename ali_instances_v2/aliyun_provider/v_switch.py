@@ -6,28 +6,19 @@ from alibabacloud_ecs20140526.client import Client as EcsClient
 
 from ali_instances_v2.client_factory import ClientFactory
 
-from .vpc import DEFAULT_VPC_CIDR
+from ..infra_builder.types import DEFAULT_VPC_CIDR, VSwitchInfo
 from utils.wait_until import wait_until
 
 
-@dataclass
-class VSwitchInfo:
-    v_switch_id: str
-    v_switch_name: str
-    zone_id: str
-    cidr_block: str
-    status: str
+
+def as_vswitch_info(rep: DescribeVSwitchesResponseBodyVSwitchesVSwitch):
+    assert type(rep.v_switch_id) is str
+    assert type(rep.v_switch_name) is str
+    assert type(rep.zone_id) is str
+    assert type(rep.status) is str
+    assert type(rep.cidr_block) is str
     
-    
-    @classmethod
-    def from_api_response(cls, rep: DescribeVSwitchesResponseBodyVSwitchesVSwitch):
-        assert type(rep.v_switch_id) is str
-        assert type(rep.v_switch_name) is str
-        assert type(rep.zone_id) is str
-        assert type(rep.status) is str
-        assert type(rep.cidr_block) is str
-        
-        return VSwitchInfo(v_switch_id=rep.v_switch_id, v_switch_name=rep.v_switch_name, zone_id=rep.zone_id, status=rep.status, cidr_block=rep.cidr_block)
+    return VSwitchInfo(v_switch_id=rep.v_switch_id, v_switch_name=rep.v_switch_name, zone_id=rep.zone_id, status=rep.status, cidr_block=rep.cidr_block)
     
 
 
@@ -39,7 +30,7 @@ def get_v_switchs_in_region(c: ClientFactory, region_id: str, vpc_id: str) -> Li
     page_number = 1
     while True:
         rep = client.describe_vswitches(DescribeVSwitchesRequest(region_id=region_id, vpc_id=vpc_id, page_number=page_number, page_size=50))
-        result.extend([VSwitchInfo.from_api_response(v_switch) for v_switch in rep.body.v_switches.v_switch])
+        result.extend([as_vswitch_info(v_switch) for v_switch in rep.body.v_switches.v_switch])
         if rep.body.total_count <= page_number * 50:
             break
         page_number += 1

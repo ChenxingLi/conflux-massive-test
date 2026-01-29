@@ -9,7 +9,7 @@ from loguru import logger
 
 from ali_instances_v2.client_factory import ClientFactory
 from ali_instances_v2.create_instance_in_region import create_instances_in_region
-from ali_instances_v2.infra_provider.build import InfraRequest
+from ali_instances_v2.infra_builder.build import InfraRequest
 from .types import InstanceConfig, InstanceType
 from request_config import AliyunRequestConfig, RequestConfig
 from host_spec import save_hosts
@@ -28,8 +28,7 @@ def create_instances(config: AliyunRequestConfig, allow_create: bool, infra_only
                       for i in config.instance_types]
 
     def _create_in_region(region_id: str, nodes: int):
-        client = client_factory.build(region_id)
-        return create_instances_in_region(client, cfg, provider.get_region(region_id), instance_types, nodes)
+        return create_instances_in_region(client_factory, cfg, provider.get_region(region_id), instance_types, nodes)
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         results = list(executor.map(lambda reg: _create_in_region(

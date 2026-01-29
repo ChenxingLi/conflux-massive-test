@@ -5,19 +5,14 @@ from alibabacloud_ecs20140526.models import DescribeKeyPairsResponseBodyKeyPairs
 from alibabacloud_ecs20140526.client import Client as EcsClient
 
 from ali_instances_v2.client_factory import ClientFactory
+from ali_instances_v2.infra_builder.types import KeyPairInfo
 from utils.wait_until import wait_until
 
-from .crypto import get_fingerprint_from_key, get_public_key_body
-
-
-@dataclass
-class KeyPairInfo:
-    finger_print: str
+from ..infra_builder.crypto import get_fingerprint_from_key, get_public_key_body
     
-    @classmethod
-    def from_api_response(cls, rep: DescribeKeyPairsResponseBodyKeyPairsKeyPair):
-        assert type(rep.key_pair_finger_print) is str
-        return KeyPairInfo(finger_print=rep.key_pair_finger_print)
+def as_key_pair_info(rep: DescribeKeyPairsResponseBodyKeyPairsKeyPair):
+    assert type(rep.key_pair_finger_print) is str
+    return KeyPairInfo(finger_print=rep.key_pair_finger_print)
     
 @dataclass
 class KeyPairRequestConfig:
@@ -43,7 +38,7 @@ def get_keypairs_in_region(c: ClientFactory, region_id: str, key_pair_name: str)
     page_number = 1
     while True:
         rep = client.describe_key_pairs(DescribeKeyPairsRequest(region_id=region_id, key_pair_name=key_pair_name, page_number=page_number, page_size=50))
-        result.extend([KeyPairInfo.from_api_response(v_switch) for v_switch in rep.body.key_pairs.key_pair])
+        result.extend([as_key_pair_info(v_switch) for v_switch in rep.body.key_pairs.key_pair])
         if rep.body.total_count <= page_number * 50:
             break
         page_number += 1

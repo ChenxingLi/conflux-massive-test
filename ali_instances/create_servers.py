@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from loguru import logger
 
 from ali_instances.multi_region_runner import provision_aliyun_hosts
-from ali_instances.host_spec import HostSpec
+from host_spec import HostSpec
 
 
 def generate_timestamp() -> str:

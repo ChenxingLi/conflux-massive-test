@@ -1,24 +1,22 @@
 from itertools import product
 import math
-import time
-import traceback
 import threading
 from typing import List
 
 
-from alibabacloud_ecs20140526 import models as ecs_models
-from alibabacloud_ecs20140526.client import Client as EcsClient
 from loguru import logger
 
+from ali_instances_v2.client_factory import ClientFactory
+from ali_instances_v2.aliyun_provider.instance import create_instances_in_zone
 from host_spec import HostSpec
 
 from .region_create_manager import RegionCreateManager
 
-from .types import RegionInfo, ZoneInfo, InstanceConfig, InstanceType
+from .types import RegionInfo, InstanceConfig, InstanceType
     
             
     
-def create_instances_in_region(c: EcsClient, cfg: InstanceConfig, region_info: RegionInfo, instance_types: List[InstanceType], nodes: int):
+def create_instances_in_region(c: ClientFactory, cfg: InstanceConfig, region_info: RegionInfo, instance_types: List[InstanceType], nodes: int):
     mgr = RegionCreateManager(region_info.id, nodes)
     thread1 = threading.Thread(target=mgr.describe_instances_loop, args=(c,))
     thread1.start()
@@ -43,7 +41,7 @@ def create_instances_in_region(c: EcsClient, cfg: InstanceConfig, region_info: R
             logger.success(f"Region {region_info.id} launch complete")
             return _make_host_spec(mgr, region_info)
             
-        instance_ids = _create_instances_in_zone(c, cfg, region_info, zone_info, instance_type, amount, allow_partial_success=True)
+        instance_ids = create_instances_in_zone(c, cfg, region_info, zone_info, instance_type, amount, allow_partial_success=True)
         if len(instance_ids) < amount:
             # 当前实例组合可用已经耗尽，尝试下一组
             try:
@@ -70,9 +68,9 @@ def _make_host_spec(mgr: RegionCreateManager, region_info: RegionInfo):
                      instance_id=instance.instance_id)
             for (instance, ip) in ready_instances]
     
-def _try_create_in_single_zone(c: EcsClient, mgr: RegionCreateManager, cfg: InstanceConfig, region_info: RegionInfo, instance_type: InstanceType, amount: int):
+def _try_create_in_single_zone(c: ClientFactory, mgr: RegionCreateManager, cfg: InstanceConfig, region_info: RegionInfo, instance_type: InstanceType, amount: int):
     for zone_info in region_info.zones.values():
-        ids = _create_instances_in_zone(c, cfg, region_info, zone_info, instance_type, amount)
+        ids = create_instances_in_zone(c, cfg, region_info, zone_info, instance_type, amount)
         if len(ids) == 0:
             continue
         elif len(ids) < amount:
@@ -82,54 +80,3 @@ def _try_create_in_single_zone(c: EcsClient, mgr: RegionCreateManager, cfg: Inst
             mgr.submit_pending_instances(ids, instance_type)
             # 无论这些实例是否都成功，不会再走 create_in_single_zone 的逻辑
             return
-        
-    
-
-def _create_instances_in_zone(
-    c: EcsClient,
-    cfg: InstanceConfig,
-    region_info: RegionInfo,
-    zone_info: ZoneInfo,
-    instance_type: InstanceType,
-    amount: int,
-    allow_partial_success: bool = False,
-) -> list[str]:
-    disk = ecs_models.RunInstancesRequestSystemDisk(category="cloud_essd", size=str(cfg.disk_size))
-    name = f"{cfg.instance_name_prefix}-{int(time.time())}"
-        
-    req = ecs_models.RunInstancesRequest(
-        region_id=region_info.id,
-        zone_id=zone_info.id,
-        image_id=region_info.image_id,
-        instance_type=instance_type.name,
-        security_group_id=region_info.security_group_id,
-        v_switch_id=zone_info.v_switch_id,
-        key_pair_name=region_info.key_pair_name,
-        instance_name=name,
-        internet_max_bandwidth_out=cfg.internet_max_bandwidth_out,
-        internet_charge_type="PayByTraffic",
-        instance_charge_type="PostPaid",
-        tag=cfg.instance_tags,
-        amount=amount,
-        system_disk=disk,
-    )
-    
-    if allow_partial_success:
-        req.min_amount = 1
-
-    try:
-        resp = c.run_instances(req)
-        ids = resp.body.instance_id_sets.instance_id_set
-        assert ids is not None
-        logger.success(f"Create instances at {region_info.id}/{zone_info.id}: instance_type={instance_type.name}, amount={len(ids)}, ids={ids}")
-        # ids = resp.body.instance_id_sets.instance_id_set if resp.body and resp.body.instance_id_sets else []
-        return ids
-    except Exception as exc:
-        e = traceback.format_exc()
-        code = getattr(exc, "code", None)
-        if code == "OperationDenied.NoStock":
-            logger.warning(f"No stock for {region_info.id}/{zone_info.id}, instance_type={instance_type.name}, amount={amount}")
-            return []
-        logger.error(f"run_instances failed for {region_info.id}/{zone_info.id}: {exc}")
-        logger.error(e)
-        return []

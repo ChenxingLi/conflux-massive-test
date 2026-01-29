@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Dict, List
 
-from alibabacloud_ecs20140526 import models as ecs_models
+from alibabacloud_ecs20140526 import models as ali_models
 
 
 DEFAULT_COMMON_TAG_KEY = "conflux-massive-test"
@@ -50,8 +50,8 @@ class InstanceConfig:
     user_tag_value: str = DEFAULT_USER_TAG_VALUE
     
     @property
-    def instance_tags(self) -> List[ecs_models.RunInstancesRequestTag]:
+    def aliyun_instance_tags(self) -> List[ali_models.RunInstancesRequestTag]:
         return [
-            ecs_models.RunInstancesRequestTag(key=DEFAULT_COMMON_TAG_KEY, value=DEFAULT_COMMON_TAG_VALUE),
-            ecs_models.RunInstancesRequestTag(key=self.user_tag_key, value=self.user_tag_value)
+            ali_models.RunInstancesRequestTag(key=DEFAULT_COMMON_TAG_KEY, value=DEFAULT_COMMON_TAG_VALUE),
+            ali_models.RunInstancesRequestTag(key=self.user_tag_key, value=self.user_tag_value)
         ]

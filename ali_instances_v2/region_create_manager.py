@@ -1,6 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
 import copy
-import json
 import queue
 import socket
 import time
@@ -8,11 +7,10 @@ import threading
 from typing import Dict, List, Set, Tuple
 from queue import Queue
 
-
-from alibabacloud_ecs20140526 import models as ecs_models
-from alibabacloud_ecs20140526.client import Client as EcsClient
 from loguru import logger
 
+from ali_instances_v2.client_factory import ClientFactory
+from ali_instances_v2.aliyun_provider.instance import describe_instance_status
 from utils.wait_until import WaitUntilTimeoutError, wait_until
 
 from .types import Instance, InstanceType
@@ -79,7 +77,7 @@ class RegionCreateManager:
                 raise Exception(
                     f"Region {self.region_id} wait for event timeout")
 
-    def describe_instances_loop(self, client: EcsClient, check_interval: float = 3.0):
+    def describe_instances_loop(self, factory: ClientFactory, check_interval: float = 3.0):
         processed_instances: Set[str] = set()
 
         while True:
@@ -88,8 +86,8 @@ class RegionCreateManager:
                 to_check_instances = set(
                     self.pending_instances) - processed_instances
 
-            running_instances, pending_instances = _describe_instance(
-                client, self.region_id, instance_ids=list(to_check_instances))
+            running_instances, pending_instances = describe_instance_status(
+                factory, self.region_id, instance_ids=list(to_check_instances))
 
             if len(pending_instances) > 0:
                 logger.debug(
@@ -170,28 +168,6 @@ class RegionCreateManager:
                     return
 
             time.sleep(1)
-
-
-def _describe_instance(client: EcsClient, region_id: str, instance_ids: List[str]):
-    running_instances = dict()
-    pending_instances = set()
-
-    for i in range(0, len(instance_ids), 100):
-        query_chunk = instance_ids[i: i+100]
-        
-        rep = client.describe_instances(ecs_models.DescribeInstancesRequest(
-            region_id=region_id, page_size=100, instance_ids=json.dumps(query_chunk)))
-        instance_status = rep.body.instances.instance
-
-        running_instances.update(
-            {i.instance_id: i.public_ip_address.ip_address[0] for i in instance_status if i.status in ["Running"]})
-        
-        # 阿里云启动阶段也可能读到 instance 是 stopped 的状态
-        pending_instances.update({i.instance_id for i in instance_status if i.status in [
-                                 "Starting", "Pending", "Stopped"]})
-        time.sleep(0.5)
-    return running_instances, pending_instances
-
 
 def _check_port(ip: str, timeout: int = 5):
     """
