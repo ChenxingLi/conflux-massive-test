@@ -1,3 +1,5 @@
+# pyright: reportOptionalOperand=false
+
 import json
 import time
 import traceback
@@ -78,7 +80,7 @@ def describe_instance_status(client: Client, region_id: str, instance_ids: List[
         instance_status = rep.body.instances.instance
 
         running_instances.update(
-            {i.instance_id: i.public_ip_address.ip_address[0] for i in instance_status if i.status in ["Running"]})
+            {i.instance_id: i.public_ip_address.ip_address[0] for i in instance_status if i.status in ["Running"]}) # pyright: ignore[reportOptionalSubscript]
         
         # 阿里云启动阶段也可能读到 instance 是 stopped 的状态
         pending_instances.update({i.instance_id for i in instance_status if i.status in [

@@ -3,6 +3,7 @@ keys/*
 /ref
 
 ali_servers.json
+hosts.json
 instances.pkl
 logs/
 

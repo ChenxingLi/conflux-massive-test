@@ -2,7 +2,7 @@ from typing import List
 from alibabacloud_ecs20140526.models import DescribeSecurityGroupsRequest, DescribeSecurityGroupsResponseBodySecurityGroupsSecurityGroup, CreateSecurityGroupRequest, AuthorizeSecurityGroupRequest, AuthorizeSecurityGroupRequestPermissions
 
 from alibabacloud_ecs20140526.client import Client
-from ali_instances_v2.create_instances.types import SecurityGroupInfo
+from cloud_provisioner.create_instances.types import SecurityGroupInfo
     
 def as_security_group_info(rep: DescribeSecurityGroupsResponseBodySecurityGroupsSecurityGroup):
     assert type(rep.security_group_id) is str
@@ -24,7 +24,7 @@ def get_security_groups_in_region(client: Client, region_id: str, vpc_id: str) -
     return result
 
 def create_security_group(client: Client, region_id: str, vpc_id: str, security_group_name: str):
-    rep = client.create_security_group(CreateSecurityGroupRequest(region_id=region_id, vpc_id=vpc_id, security_group_name=security_group_name, description="conflux"))
+    rep = client.create_security_group(CreateSecurityGroupRequest(region_id=region_id, vpc_id=vpc_id, security_group_name=security_group_name))
     
     security_group_id = rep.body.security_group_id
     assert type(security_group_id) is str

@@ -8,7 +8,7 @@ from loguru import logger
 from .instance_config import InstanceConfig
 from .interface import IEcsClient
 from .types import InstanceType, RegionInfo
-from host_spec import HostSpec
+from cloud_provisioner.host_spec import HostSpec
 
 from .region_create_manager import RegionCreateManager    
             

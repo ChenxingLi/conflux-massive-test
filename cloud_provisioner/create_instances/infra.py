@@ -6,7 +6,7 @@ from loguru import logger
 
 from .types import KeyPairRequestConfig, RegionInfo, ZoneInfo
 from .interface import IEcsClient
-from request_config import AliyunRequestConfig
+from cloud_provisioner.request_config import CloudRequestConfig
 
 DEFAULT_VPC_CIDR = "10.0.0.0/16"
 
@@ -21,6 +21,7 @@ class InfraProvider:
 class InfraRequest:
     region_ids: List[str]
 
+    provider: str
     vpc_name: str
     v_switch_name: str
     security_group_name: str
@@ -30,9 +31,10 @@ class InfraRequest:
     allow_create: bool
 
     @classmethod
-    def from_aliyun_config(cls, config: AliyunRequestConfig, allow_create=False) -> 'InfraRequest':
+    def from_config(cls, config: CloudRequestConfig, allow_create=False) -> 'InfraRequest':
         infra_tag = f"conflux-massive-test-{config.user_tag}"
         return InfraRequest(region_ids=[r.name for r in config.regions],
+                            provider=config.provider,
                             vpc_name=infra_tag,
                             v_switch_name=infra_tag,
                             security_group_name=infra_tag,
@@ -68,6 +70,7 @@ class InfraRequest:
         images = _find(client.get_images_in_region(
             region_id, self.image_name), lambda im: im.image_name == self.image_name)
         if images is not None:
+            logger.info(f"Get Image {self.image_name}: {images.image_id}")
             return images.image_id
         else:
             raise Exception(
@@ -114,7 +117,7 @@ class InfraRequest:
         key_pair = client.get_keypairs_in_region(
             region_id, self.key_pair.key_pair_name)
 
-        if key_pair is not None and key_pair.finger_print == self.key_pair.finger_print:
+        if key_pair is not None and key_pair.finger_print == self.key_pair.finger_print(self.provider):
             logger.info(
                 f"Get KeyPair {self.key_pair.key_pair_name} in {region_id}")
             return
@@ -146,7 +149,7 @@ class InfraRequest:
                              self.v_switch_name and vs.zone_id == zone_id)
             if v_switch is not None:
                 # TODO: check status availbility
-                if v_switch.status != "Available":
+                if v_switch.status.lower() != "available":
                     raise Exception(
                         f"v-switch {self.v_switch_name} in region {region_id} zone {zone_id} has unexpected status: {v_switch.status}")
                 logger.info(

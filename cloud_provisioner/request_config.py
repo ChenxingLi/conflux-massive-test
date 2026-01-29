@@ -12,7 +12,9 @@ class CandidateInstanceType(BaseModel):
     name: str
     nodes: int
 
-class AliyunRequestConfig(BaseModel):
+class CloudRequestConfig(BaseModel):
+    provider: str
+    default_user_name: str
     user_tag: str
     image_name: str
     ssh_key_path: str
@@ -20,7 +22,8 @@ class AliyunRequestConfig(BaseModel):
     instance_types: List[CandidateInstanceType] = []
 
 class RequestConfig(BaseModel):
-    aliyun: AliyunRequestConfig
+    aliyun: CloudRequestConfig
+    aws: CloudRequestConfig
 
 if __name__=="__main__":
     with open("request_config.toml", "rb") as f:

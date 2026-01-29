@@ -7,8 +7,8 @@ from alibabacloud_ecs20140526.client import Client as EcsClient
 from dotenv import load_dotenv
 from loguru import logger
 
-from ali_instances_v2.aliyun_provider.client_factory import AliyunClient
-from ali_instances_v2.create_instances.instance_config import DEFAULT_COMMON_TAG_KEY, DEFAULT_COMMON_TAG_VALUE, DEFAULT_USER_TAG_KEY
+from cloud_provisioner.aliyun_provider.client_factory import AliyunClient
+from cloud_provisioner.create_instances.instance_config import DEFAULT_COMMON_TAG_KEY, DEFAULT_COMMON_TAG_VALUE, DEFAULT_USER_TAG_KEY
 
 REGIONS = [
     "ap-southeast-5",  # Indonesia

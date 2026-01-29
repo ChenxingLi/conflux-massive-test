@@ -1,7 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
-from host_spec import HostSpec
+from cloud_provisioner.host_spec import HostSpec
 from . import docker_cmds
 from .remote_node import RemoteNode
 from utils import shell_cmds

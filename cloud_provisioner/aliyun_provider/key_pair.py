@@ -1,8 +1,10 @@
+# pyright: reportOptionalOperand=false
+
 from typing import List, Optional
 from alibabacloud_ecs20140526.models import DescribeKeyPairsResponseBodyKeyPairsKeyPair, DescribeKeyPairsRequest, ImportKeyPairRequest
 from alibabacloud_ecs20140526.client import Client
 
-from ali_instances_v2.create_instances.types import KeyPairInfo, KeyPairRequestConfig
+from cloud_provisioner.create_instances.types import KeyPairInfo, KeyPairRequestConfig
 from utils.wait_until import wait_until
 
     

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Dict, Set
 
-from ali_instances_v2.create_instances.crypto import get_fingerprint_from_key, get_public_key_body
+from cloud_provisioner.create_instances.crypto import get_fingerprint_from_key, get_public_key_body
 
 @dataclass
 class ZoneInfo:
@@ -41,9 +41,8 @@ class KeyPairRequestConfig:
     key_path: str
     key_pair_name: str
     
-    @property
-    def finger_print(self):
-        return get_fingerprint_from_key(self.key_path, "md5")
+    def finger_print(self, provider: str):
+        return get_fingerprint_from_key(self.key_path, provider)
         
     @property
     def public_key(self):

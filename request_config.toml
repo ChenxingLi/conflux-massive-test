@@ -1,5 +1,10 @@
 [aliyun]
-user_tag = "lichenxing-alpha-3"
+# 云服务固有配置需要，不可修改
+provider = "aliyun"
+default_user_name = "root"
+
+# 以下可修改
+user_tag = "lichenxing-alpha-5"
 image_name = "conflux-docker-base"
 ssh_key_path = "./keys/ssh-key.pem"
 
@@ -41,4 +46,22 @@ nodes = 1
 
 [[aliyun.instance_types]]
 name = "ecs.g7.2xlarge"
+nodes = 1
+
+[aws]
+# 云服务固有配置需要，不可修改
+provider = "aws"
+default_user_name = "ubuntu"
+
+# 以下可修改
+user_tag = "lichenxing-alpha-1"
+image_name = "massive-test-seed"
+ssh_key_path = "./keys/ssh-key.pem"
+
+[[aws.regions]]
+name = "us-west-2"
+count = 1
+
+[[aws.instance_types]]
+name = "m6i.2xlarge"
 nodes = 1

@@ -1,7 +1,7 @@
 from typing import List, Optional, Protocol
 
-from ali_instances_v2.create_instances.instance_config import InstanceConfig
-from ali_instances_v2.create_instances.types import ImageInfo, InstanceStatus, KeyPairInfo, KeyPairRequestConfig, SecurityGroupInfo, VSwitchInfo, VpcInfo, InstanceType, RegionInfo, ZoneInfo
+from cloud_provisioner.create_instances.instance_config import InstanceConfig
+from cloud_provisioner.create_instances.types import ImageInfo, InstanceStatus, KeyPairInfo, KeyPairRequestConfig, SecurityGroupInfo, VSwitchInfo, VpcInfo, InstanceType, RegionInfo, ZoneInfo
 
 from abc import ABC, abstractmethod
 from typing import List, Optional

@@ -26,7 +26,7 @@ from ali_instances.instance_prep import (
     wait_running,
     wait_status,
 )
-from host_spec import HostSpec
+from cloud_provisioner.host_spec import HostSpec
 from remote_simulation.port_allocation import (
     evm_rpc_port,
     evm_rpc_ws_port,

@@ -1,7 +1,9 @@
+# pyright: reportOptionalOperand=false
+
 from typing import List
 from alibabacloud_ecs20140526.models import DescribeVpcsResponseBodyVpcsVpc, DescribeVpcsRequest, CreateVpcRequest
 
-from ali_instances_v2.create_instances.types import VpcInfo
+from cloud_provisioner.create_instances.types import VpcInfo
 from alibabacloud_ecs20140526.client import Client
 from utils.wait_until import wait_until
     

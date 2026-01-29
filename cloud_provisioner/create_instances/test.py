@@ -7,19 +7,21 @@ import tomllib
 from dotenv import load_dotenv
 from loguru import logger
 
-from ali_instances_v2.aliyun_provider.client_factory import AliyunClient
+from cloud_provisioner.aliyun_provider.client_factory import AliyunClient
+from cloud_provisioner.aws_provider.client_factory import AwsClient
+from cloud_provisioner.create_instances.interface import IEcsClient
 from .instance_config import InstanceConfig
 from .single_region_create import create_instances_in_region
 from .infra import InfraRequest
 from .types import InstanceType
-from request_config import AliyunRequestConfig, RequestConfig
-from host_spec import save_hosts
+from cloud_provisioner.request_config import CloudRequestConfig, RequestConfig
+from cloud_provisioner.host_spec import save_hosts
 
 
-def create_instances(config: AliyunRequestConfig, allow_create: bool, infra_only: bool, output_json: str):
-    request = InfraRequest.from_aliyun_config(config, allow_create=allow_create)
-    provider = request.ensure_infras(client_factory)
-    logger.success("Aliyun infra check pass")
+def create_instances(client: IEcsClient, config: CloudRequestConfig, allow_create: bool, infra_only: bool, output_json: str):
+    request = InfraRequest.from_config(config, allow_create=allow_create)
+    provider = request.ensure_infras(client)
+    logger.success(f"{config.provider} infra check pass")
 
     if infra_only:
         return
@@ -29,7 +31,7 @@ def create_instances(config: AliyunRequestConfig, allow_create: bool, infra_only
                       for i in config.instance_types]
 
     def _create_in_region(region_id: str, nodes: int):
-        return create_instances_in_region(client_factory, cfg, provider.get_region(region_id), instance_types, nodes)
+        return create_instances_in_region(client, cfg, provider.get_region(region_id), instance_types, nodes)
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         results = list(executor.map(lambda reg: _create_in_region(
@@ -71,11 +73,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     load_dotenv()
-    client_factory = AliyunClient.load_from_env()
+    client = AwsClient.new()
 
     with open("request_config.toml", "rb") as f:
         data = tomllib.load(f)
-        config = RequestConfig(**data).aliyun
+        config = RequestConfig(**data).aws
 
-    create_instances(config, args.allow_create,
-                     args.infra_only, args.output_json)
+    create_instances(client, config, args.allow_create,args.infra_only, args.output_json)

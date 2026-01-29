@@ -4,12 +4,13 @@ from cryptography.hazmat.backends import default_backend
 import base64
 import hashlib
 
-def get_fingerprint_from_key(key_path: str, hash_type: str = 'sha256') -> str:
+def get_fingerprint_from_key(key_path: str, provider: str) -> str:
     """
     从密钥文件获取指纹
     
     Args:
         key_path: 密钥文件路径
+        provider: 云服务商 ('aliyun' 或 'aws')
         hash_type: 哈希类型 ('md5' 或 'sha256')
     
     Returns:
@@ -26,25 +27,29 @@ def get_fingerprint_from_key(key_path: str, hash_type: str = 'sha256') -> str:
     # 获取公钥
     public_key = private_key.public_key()
     
-    # 序列化公钥为 OpenSSH 格式
-    public_key_bytes = public_key.public_bytes(
-        encoding=serialization.Encoding.OpenSSH,
-        format=serialization.PublicFormat.OpenSSH
-    )
-    
-    # 提取密钥数据(去掉 "ssh-rsa " 等前缀)
-    key_data = base64.b64decode(public_key_bytes.split()[1])
-    
-    # 计算指纹
-    if hash_type == 'md5':
+    if provider == 'aliyun':
+        # 阿里云：使用 OpenSSH 格式的 base64 部分
+        public_key_bytes = public_key.public_bytes(
+            encoding=serialization.Encoding.OpenSSH,
+            format=serialization.PublicFormat.OpenSSH
+        )
+        # 提取密钥数据(去掉 "ssh-rsa " 等前缀)
+        key_data = base64.b64decode(public_key_bytes.split()[1])
+        
         return hashlib.md5(key_data).hexdigest()
-        # # 格式化为 xx:xx:xx:... 格式
-        # return ':'.join(fingerprint[i:i+2] for i in range(0, len(fingerprint), 2))
-    elif hash_type == 'sha256':
-        fingerprint = hashlib.sha256(key_data).digest()
-        return 'SHA256:' + base64.b64encode(fingerprint).decode('utf-8').rstrip('=')
+        
+    elif provider == 'aws':
+        # AWS：使用 DER 编码的 SubjectPublicKeyInfo 格式
+        key_data = public_key.public_bytes(
+            encoding=serialization.Encoding.DER,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        fingerprint = hashlib.md5(key_data).hexdigest()
+        # 格式化为 xx:xx:xx:... 格式
+        return ':'.join(fingerprint[i:i+2] for i in range(0, len(fingerprint), 2))
     else:
-        raise ValueError(f"不支持的哈希类型: {hash_type}")
+        raise ValueError(f"不支持的云服务商: {provider}")
+    
     
 def get_public_key_body(path: str) -> str:
     """

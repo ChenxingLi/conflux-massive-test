@@ -1,36 +1,29 @@
 #!/usr/bin/env python3
 import argparse
-import json
 import shutil
-from typing import List
 
 from dotenv import load_dotenv
 
-from host_spec import HostSpec, load_hosts
+from cloud_provisioner.host_spec import HostSpec, load_hosts
 
-from remote_simulation.block_generator import generate_blocks_async
-from remote_simulation.launch_conflux_node import launch_remote_nodes
-from remote_simulation.network_connector import connect_nodes
-from remote_simulation.network_topology import NetworkTopology
-from remote_simulation.config_builder import SimulateOptions, ConfluxOptions, generate_config_file
-from remote_simulation.tools import collect_logs, init_tx_gen, wait_for_nodes_synced
+from .block_generator import generate_blocks_async
+from .launch_conflux_node import launch_remote_nodes
+from .network_connector import connect_nodes
+from .network_topology import NetworkTopology
+from .config_builder import SimulateOptions, ConfluxOptions, generate_config_file
+from .tools import collect_logs, init_tx_gen, wait_for_nodes_synced
 
 
 from loguru import logger
 
-from utils.tempfile import TempFile
-from aws_instances.launch_ec2_instances import Instances, LaunchConfig
+# from utils.tempfile import TempFile
+# from aws_instances.launch_ec2_instances import Instances, LaunchConfig
 
 import os
 import datetime
 from pathlib import Path
 
 from utils.wait_until import WaitUntilTimeoutError
-
-def load_launched_hosts(path: str)->List[HostSpec]:
-    raw = json.load(open(path, "r"))
-    hosts = load_host_specs(raw)
-    return hosts
 
 def generate_timestamp():
     """
