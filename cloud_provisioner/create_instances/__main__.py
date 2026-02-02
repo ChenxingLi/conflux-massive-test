@@ -5,6 +5,7 @@ from itertools import chain
 import threading
 import tomllib
 import traceback
+from typing import Optional
 
 from dotenv import load_dotenv
 from loguru import logger
@@ -16,38 +17,42 @@ from ..provider_interface import IEcsClient
 
 from .instance_config import InstanceConfig
 from .instance_provisioner import create_instances_in_region
-from .network_infra import InfraRequest
+from .network_infra import InfraProvider, InfraRequest
 from .types import InstanceType
 from .provision_config import CloudConfig, ProvisionConfig
 
 
-def _ensure_network_infra(client: IEcsClient, cloud_config: CloudConfig, allow_create):
-    request = InfraRequest.from_config(cloud_config, allow_create=allow_create)
-    infra_provider = request.ensure_infras(client)
-    logger.success(f"{cloud_config.provider} infra check pass")
-    
-    return infra_provider
-
 def create_instances(client: IEcsClient, cloud_config: CloudConfig, barrier: threading.Barrier, allow_create: bool, infra_only: bool):
+    infra_provider = _ensure_network_infra(client, cloud_config, allow_create)
+
+    if infra_only or infra_provider is None:
+        return []
+    else:
+        return create_instances_in_multi_region(client, cloud_config, infra_provider)
+    
+def _ensure_network_infra(client: IEcsClient, cloud_config: CloudConfig, allow_create) -> Optional[InfraProvider]:
     try:
-        infra_provider = _ensure_network_infra(client, cloud_config, allow_create)
+        request = InfraRequest.from_config(cloud_config, allow_create=allow_create)
+        infra_provider = request.ensure_infras(client)
+        logger.success(f"{cloud_config.provider} infra check pass")
         barrier.wait()
     except threading.BrokenBarrierError:
         logger.debug(f"{cloud_config.provider} quit due to other cloud providers fails")
         barrier.abort()
-        return []
+        return None
     except Exception as e:
         logger.error(f"Fail to build network infra: {e}")
         barrier.abort()
         print(traceback.format_exc())
-        return []
-
-    if infra_only:
-        return []
+        return None
     
+    return infra_provider
+    
+def create_instances_in_multi_region(client: IEcsClient, cloud_config: CloudConfig, infra_provider: InfraProvider):
     instance_config = InstanceConfig(user_tag_value=cloud_config.user_tag)
     instance_types = [InstanceType(i.name, i.nodes)
                       for i in cloud_config.instance_types]
+    regions = filter(lambda reg: reg.count>0, cloud_config.regions)
 
     def _create_in_region(region_id: str, nodes: int):
         return create_instances_in_region(client, 
@@ -60,7 +65,7 @@ def create_instances(client: IEcsClient, cloud_config: CloudConfig, barrier: thr
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         results = list(executor.map(lambda reg: _create_in_region(
-            reg.name, reg.count), cloud_config.regions))
+            reg.name, reg.count), regions))
         hosts = list(chain.from_iterable(results))
 
     return hosts
@@ -93,7 +98,7 @@ def make_parser():
     return parser
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":    
     parser = make_parser()
     args = parser.parse_args()
 
