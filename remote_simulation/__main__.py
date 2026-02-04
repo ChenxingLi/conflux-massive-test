@@ -95,7 +95,7 @@ if __name__ == "__main__":
     if len(nodes) < simulation_config.target_nodes:
         raise Exception("Not all nodes started")
     sample_node = random.choice(nodes)
-    logger.info(f"随机选择观察节点 {sample_node.host_spec.ip} 来自 {sample_node.host_spec.provider} {sample_node.host_spec.region}")
+    logger.info(f"随机选择观察节点 {sample_node.host_spec.ip} 来自 {sample_node.host_spec.provider} {sample_node.host_spec.zone}")
     logger.success("所有节点已启动，准备连接拓扑网络")
 
     # 4. 手动连接网络
