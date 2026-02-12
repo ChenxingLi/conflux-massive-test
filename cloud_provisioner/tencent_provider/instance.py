@@ -97,9 +97,9 @@ def create_instances_in_zone(
     req.SecurityGroupIds = [region_info.security_group_id]
     req.TagSpecification = [tag_spec]
 
-    # if allow_partial_success:
-    #     # 参数 `MinCount` 需要开名单才可以使用
-    #     req.MinCount = 1
+    if allow_partial_success:
+        # 参数 `MinCount` 需要开名单才可以使用
+        req.MinCount = 1
 
     try:
         resp = client.RunInstances(req)
