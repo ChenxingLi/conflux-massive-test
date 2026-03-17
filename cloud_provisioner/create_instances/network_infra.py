@@ -144,14 +144,23 @@ class InfraRequest:
 
     def _ensure_v_switches_in_region(self, client: IEcsClient, region_id: str, zone_ids: List[str], vpc_id: str) -> Dict[str, ZoneInfo]:
         v_switches = client.get_v_switchs_in_region(region_id, vpc_id)
+        managed_v_switches = [vs for vs in v_switches if vs.v_switch_name == self.v_switch_name]
 
         zones: List[ZoneInfo] = []
 
         occupied_blocks = [vs.cidr_block for vs in v_switches]
 
-        for zone_id in zone_ids:
-            v_switch = _find(v_switches, lambda vs: vs.v_switch_name ==
-                             self.v_switch_name and vs.zone_id == zone_id)
+        if self.allow_create:
+            candidate_zone_ids = zone_ids
+        else:
+            candidate_zone_ids = list(dict.fromkeys(vs.zone_id for vs in managed_v_switches))
+            skipped_zone_ids = [zone_id for zone_id in zone_ids if zone_id not in candidate_zone_ids]
+            for zone_id in skipped_zone_ids:
+                logger.warning(
+                    f"Skip zone {region_id}/{zone_id} during infra check because no managed v-switch exists")
+
+        for zone_id in candidate_zone_ids:
+            v_switch = _find(managed_v_switches, lambda vs: vs.zone_id == zone_id)
             if v_switch is not None:
                 if v_switch.status.lower() != "available":
                     raise Exception(
