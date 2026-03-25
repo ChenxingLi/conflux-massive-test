@@ -27,12 +27,13 @@ def launch_node(index: int) -> str:
     )
 
     cmd_startup = (
-        f"sudo rm -rf ~/log{index} &&",
-        f"mkdir ~/log{index} &&",
+        f"sudo docker rm -f {container_name(index)} >/dev/null 2>&1 || true &&",
+        f'rm -rf "$HOME/log{index}" &&',
+        f'mkdir -p "$HOME/log{index}" &&',
         "sudo docker run -d",
         f"--name {container_name(index)}",          
         "-v ~/config.toml:/root/config.toml:ro",
-        f"-v ~/log{index}:/root/log",
+        f"-v $HOME/log{index}:/root/log",
         "--privileged",                          # 如果需要调整内核参数或高权限
         *port_cmd,
         "-w /root",                              # 设置工作目录
@@ -44,19 +45,19 @@ def launch_node(index: int) -> str:
 
 def stop_node_and_collect_log(index: int, *, user = "ubuntu") -> str:
     stop_node = (
-        f"sudo docker stop {container_name(index)}",
+        f"sudo docker stop {container_name(index)} >/dev/null 2>&1 || true",
     )
     collect_logs = (
-        f"sudo rm -rf ~/output{index} &&",
-        f"mkdir ~/output{index} &&",
+        f'rm -rf "$HOME/output{index}" &&',
+        f'mkdir -p "$HOME/output{index}" &&',
         "sudo docker run --rm",
         f"--name {container_name(index)}_collect",          
-        f"-v ~/log{index}:/root/log:ro",
-        f"-v ~/output{index}:/root/output",
+        f"-v $HOME/log{index}:/root/log:ro",
+        f"-v $HOME/output{index}:/root/output",
         "-w /root",                       
         IMAGE_TAG, 
         "/bin/bash -c ./collect_logs.sh &&",
-        f"sudo chown {user}:{user} ~/output{index}/*"
+        f"sudo chown {user}:{user} $HOME/output{index}/*"
     )
 
     return " ".join(stop_node) + " && " + " ".join(collect_logs)
@@ -65,7 +66,7 @@ def stop_all_nodes() -> str:
     return f"sudo docker ps -aq --filter name={CONTAINER_PREFIX} | xargs -r sudo docker stop"
 
 def destory_all_nodes() -> str:
-    return f"sudo docker ps -aq --filter name={CONTAINER_PREFIX} | xargs -r sudo docker rm -f && sudo rm -rf ~/log* && sudo rm -rf ~/output*"
+    return f"sudo docker ps -aq --filter name={CONTAINER_PREFIX} | xargs -r sudo docker rm -f && rm -rf $HOME/log* && rm -rf $HOME/output*"
 
 
 def pull_image_from_dockerhub_and_push_local() -> str:
