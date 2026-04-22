@@ -3,6 +3,7 @@ import pathlib
 import pandas as pd
 import numpy as np
 import functools
+import random
 from functools import partial
 import multiprocessing as mp
 from tqdm.auto import tqdm
@@ -338,8 +339,10 @@ class GlobalMetricsStats:
         self.log_dir = log_dir
         
     @staticmethod
-    def for_each_node_parallel(log_dir: str, func: Callable[[str], T], 
-                              desc: str = "Process nodes metrics log") -> List[T]:
+    def for_each_node_parallel(log_dir: str, func: Callable[[str], T], *,
+                              desc: str = "Process nodes metrics log",
+                              sample: float = 1.0
+                              ) -> List[T]:
         """
         使用多进程并行地为每个节点日志执行函数。
         
@@ -353,6 +356,9 @@ class GlobalMetricsStats:
         """
         with mp.Pool(processes=mp.cpu_count()) as pool:
             paths: List[str] = node_paths(log_dir)
+            if sample < 1.0:
+                k = max(1, int(len(paths) * sample))
+                paths = random.sample(paths, k)
             return list(tqdm(pool.imap(func, paths), total=len(paths), desc=desc))
         # return [func(path) for path in node_paths(log_dir)]
 
@@ -361,21 +367,21 @@ class GlobalMetricsStats:
         """
         预处理节点日志指标
         """
-        GlobalMetricsStats.for_each_node_parallel(log_dir, SingleNodeMetrics.preprocess, "Pre-process nodes metrics log ")
+        GlobalMetricsStats.for_each_node_parallel(log_dir, SingleNodeMetrics.preprocess, desc = "Pre-process nodes metrics log ")
 
     @classmethod
-    def load_percentiles(cls, log_dir: str, percentile: int) -> Self:
+    def load_percentiles(cls, log_dir: str, percentile: int, sample: float) -> Self:
         """
         加载指定百分位数的节点指标统计信息。
         """
     
-        return GlobalMetricsStats(log_dir, GlobalMetricsStats._load_percentiles(log_dir, percentile))
+        return GlobalMetricsStats(log_dir, GlobalMetricsStats._load_percentiles(log_dir, percentile, sample))
     
     @staticmethod
     @functools.lru_cache(maxsize=10)
-    def _load_percentiles(log_dir: str, percentile: int) -> Self:
+    def _load_percentiles(log_dir: str, percentile: int, sample: float) -> Self:
         func = partial(NodeMetricsStats.load_percentiles_from_path, percentile=percentile)
-        return GlobalMetricsStats.for_each_node_parallel(log_dir, func)
+        return GlobalMetricsStats.for_each_node_parallel(log_dir, func, sample=sample)
 
     @classmethod
     def load_time_slice(cls, log_dir: str, minute_str: str) -> Self:

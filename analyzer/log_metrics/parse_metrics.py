@@ -210,6 +210,7 @@ def plot_metrics_by_pecentiles(log_dir: str,
                                figsize: tuple[int, int] = (40, 10),
                                time_range: Optional[str] = None,
                                nano_seconds: bool = False,
+                               sample: float = 1.0,
                                title = None,
                                y_label = None,
                                legend_loc = None,
@@ -262,7 +263,7 @@ def plot_metrics_by_pecentiles(log_dir: str,
         )
     """
     
-    global_stats = GlobalMetricsStats.load_percentiles(log_dir, node_percentile)
+    global_stats = GlobalMetricsStats.load_percentiles(log_dir, node_percentile, sample = sample)
     selected_nodes = global_stats.query_node_stat_at_percentiles(
         metric_name, f"p{node_percentile}", plot_percentiles
     )
