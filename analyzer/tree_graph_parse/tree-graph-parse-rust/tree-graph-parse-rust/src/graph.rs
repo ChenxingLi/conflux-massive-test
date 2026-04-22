@@ -68,7 +68,7 @@ impl Graph {
         unready_graph.finalize()
     }
 
-    pub fn blocks(&self) -> impl Iterator<Item = &Block> + '_ { self.block_map.values() }
+    pub fn blocks<'a>(&'a self) -> impl Iterator<Item = &'a Block> + 'a { self.block_map.values() }
 
     pub fn genesis_block(&self) -> &Block { self.block_map.get(&self.root_hash).unwrap() }
 

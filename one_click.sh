@@ -72,7 +72,7 @@ trap - EXIT
 print_separator "步骤 3/3：开始分析日志"
 
 find $LOG_PATH/nodes -name "conflux.log.new_blocks.7z" -print0 | xargs -0 -P4 -I{} sh -c 'f="{}"; 7z x -bso0 -bsp0 -o"$(dirname "$f")" "$f"'
-python -m analyzer.log_metrics -l $LOG_PATH/nodes -o $LOG_PATH/figs -m good_tps.m1 stat_unpacked_txs stat_ready_accounts
+python -m analyzer.log_metrics -l $LOG_PATH/nodes -o $LOG_PATH/figs -m good_tps.m1 stat_unpacked_txs stat_ready_accounts inflight_tx_pool_size
 
 ./analyzer/stat_latency/stat_latency_rs/target/release/stat_latency_rs -l $LOG_PATH/nodes --quantile-impl tdigest | tee $LOG_PATH/exp_latency.log
 

@@ -1,7 +1,7 @@
 from remote_simulation.port_allocation import p2p_port, rpc_port, pubsub_port, remote_rpc_port, evm_rpc_port, evm_rpc_ws_port
 
 # REMOTE_IMAGE_TAG = "public.ecr.aws/s9d3x9f5/conflux-massive-test/conflux-node:latest"
-REMOTE_IMAGE_TAG = "lylcx2007/conflux-node:latest"
+REMOTE_IMAGE_TAG = "lylcx2007/conflux-node:dev"
 IMAGE_TAG = "conflux-node:latest"
 REGISTRY_IMAGE = "conflux-node:base"
 REGISTRY_PORT = 5000
