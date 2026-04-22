@@ -101,7 +101,7 @@ if __name__ == "__main__":
     logger.info("准备分区内镜像拉取 (dockerhub -> zone peers -> local registry)")
     prepare_images_by_zone(host_specs)
     
-    nodes = launch_remote_nodes(host_specs, config_file, pull_docker_image=False)
+    nodes = launch_remote_nodes(host_specs, config_file, pull_docker_image=False, clear_environment=True)
     if len(nodes) < simulation_config.target_nodes:
         logger.warning(f"启动了{len(nodes)}个节点，少于预期的{simulation_config.target_nodes}个节点")
         logger.warning("部分节点启动失败，继续进行测试")
